@@ -15,6 +15,10 @@ Decisioni autonome prese durante lo sviluppo di GelatoLab Pro, in ordine cronolo
 |---|---|---|
 | Prisma 7 driver adapters | Usare `@prisma/adapter-pg` + `pg`; rimosso `url` dal datasource (in `prisma.config.ts`) | Prisma 7 non supporta più `url` nello schema; richiede adapter lato client |
 | DB in ambiente dev | PostgreSQL 18 installato localmente (apt); Docker Compose resta per deployment | Docker non disponibile nell'ambiente di esecuzione; serve un DB per validare `db:setup` e il flusso P0 |
+| Export API route | Route API `/api/recipes/:id/export` per JSON e CSV invece di Server Action | download file necessita response stream nativo; separazione netta da azioni mutative |
+| Print page server component | `src/app/recipes/[id]/print/page.tsx` rende una scheda tecnica stampabile con CSS `@media print` | Spec §9 richiede scheda stampabile; server component evita JS lato stampa |
+| Preset pages | Pagine separate per lista, dettaglio e nuovo preset; dettaglio readonly per preset sistema | Parità con specifica; sistema vs personalizzato con badge visivo |
+| RecipeMetrics type export | Rimosso `export type { RecipeMetrics }` da actions/recipes.ts | Causava errore Turbopack in build; type non serve in Actions (importato da `@/types`) |
 | Scala POD/PAC | `podCoefficient`/`pacCoefficient` relativi al saccarosio=100. Metrica headline `pod`/`pac` = Σ(g·coeff)/pesoTotale×100 (convezione "% saccarosio-equivalente", range tipico 16-26). `podPerKg` = `pod`×10 | Allineata alla letteratura gelato artigianale (Penco/Della Scala) e produce range di preset sensati |
 | "Grezzo" vs normalizzato | `podRaw`=Σ(g·coeff) memorizzato come contributo; headline `pod`=normalizzato in % | Formula spec "contributo=quantità×coeff" preservata; UI/preset usano il normalizzato |
 | MSNF derivato | Se `msnfPercent` assente, derivato = proteine+lattosio+minerali per categorie latte; flag `msnfDerived` in UI | Spec §3: "derivalo e marcalo come derivato" |

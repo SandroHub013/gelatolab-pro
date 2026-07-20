@@ -5,10 +5,9 @@ import { toDomainRecipe, toDomainIngredients, snapshotToDomainRecipe, snapshotTo
 import { calculateRecipe, compareRecipes, formatEuro, formatNumberIt } from "@/domain/calculations";
 import { detectCompositionDrift } from "@/app/actions/recipes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SaveSnapshotButton } from "@/features/recipes/save-snapshot-button";
-import { ArrowLeft, GitCompareArrows, AlertTriangle, Camera, Check } from "lucide-react";
+import { ArrowLeft, GitCompareArrows, AlertTriangle, Camera } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +24,6 @@ export default async function ComparisonPage({ params }: { params: Promise<{ id:
 
   const domainRecipe = toDomainRecipe(recipe);
   const currentIngredients = toDomainIngredients(recipe.ingredients.map((ri) => ri.ingredient));
-  const currentMetrics = calculateRecipe(domainRecipe, currentIngredients);
-
   const lastSnapshot = recipe.snapshots[0] ?? null;
   const drift = await detectCompositionDrift(id);
 
