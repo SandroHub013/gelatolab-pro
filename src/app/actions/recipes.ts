@@ -13,7 +13,6 @@ import type {
   Ingredient,
   Recipe,
   RecipeIngredientInput,
-  RecipeMetrics,
 } from "@/types";
 import { recipeIngredientSchema } from "@/domain/validation";
 import type { Prisma } from "@prisma/client";
@@ -337,4 +336,3 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export type { RecipeMetrics };
