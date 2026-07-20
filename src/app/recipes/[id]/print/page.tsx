@@ -5,7 +5,8 @@ import { toDomainRecipe, toDomainIngredients } from "@/infrastructure/repositori
 import { calculateRecipe, formatNumberIt, formatEuro } from "@/domain/calculations";
 import { evaluateTargets } from "@/domain/constraints";
 import { RECIPE_FAMILY_LABELS, INGREDIENT_CATEGORY_LABELS, type CalibrationPreset } from "@/types";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PrintButton } from "./print-button";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +39,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         >
           <ArrowLeft className="size-4" /> Torna all&apos;editor
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
-        >
-          <Printer className="size-4" /> Stampa
-        </button>
+        <PrintButton />
       </div>
 
       <div className="print-area rounded-xl border border-border bg-white p-8 shadow-sm">
@@ -396,21 +392,21 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       {/* Export buttons */}
       <div className="no-print mt-4 flex flex-wrap gap-2">
         <a
-          href={`/api/recipes/${id}/export/json`}
+          href={`/api/recipes/${id}/export?format=json`}
           download={`${recipe.slug}.json`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
         >
           Scarica JSON
         </a>
         <a
-          href={`/api/recipes/${id}/export/csv`}
+          href={`/api/recipes/${id}/export?format=csv`}
           download={`${recipe.slug}.csv`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
         >
           Scarica CSV
         </a>
         <a
-          href={`/api/recipes/${id}/export/csv?locale=it`}
+          href={`/api/recipes/${id}/export?format=csv&locale=it`}
           download={`${recipe.slug}.csv`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
         >

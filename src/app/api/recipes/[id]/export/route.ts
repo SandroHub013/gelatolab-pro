@@ -84,21 +84,21 @@ export async function GET(
 
     lines.push("");
     lines.push("# Metriche aggregate");
-    lines.push(`Solidi %,${fmtNum((metrics.totalSolids / total) * 100, 1)}`);
-    lines.push(`Zuccheri %,${fmtNum((metrics.sugars.total / total) * 100, 1)}`);
-    lines.push(`Grassi %,${fmtNum((metrics.fat.total / total) * 100, 1)}`);
-    lines.push(`Proteine %,${fmtNum((metrics.protein / total) * 100, 1)}`);
-    lines.push(`MSNF %,${fmtNum((metrics.msnf / total) * 100, 1)}`);
-    lines.push(`Fibre %,${fmtNum((metrics.fiber / total) * 100, 1)}`);
-    lines.push(`POD,${fmtNum(metrics.pod, 1)}`);
-    lines.push(`PAC,${fmtNum(metrics.pac, 1)}`);
-    lines.push(`POD/kg,${fmtNum(metrics.podPerKg, 1)}`);
-    lines.push(`PAC/kg,${fmtNum(metrics.pacPerKg, 1)}`);
-    lines.push(`Indice equilibrio,${fmtNum(metrics.equilibriumIndex, 0)}`);
-    lines.push(`Temp. servizio °C,${fmtNum(metrics.estimatedServingTemperature, 1)}`);
-    lines.push(`Costo/kg €,${fmtNum(metrics.costPerKg, 4)}`);
-    lines.push(`Costo totale €,${fmtNum(metrics.cost, 4)}`);
-    lines.push(`kcal/100g,${fmtNum(metrics.kcalPer100g, 0)}`);
+    lines.push(`Solidi %${sep}${fmtNum((metrics.totalSolids / total) * 100, 1)}`);
+    lines.push(`Zuccheri %${sep}${fmtNum((metrics.sugars.total / total) * 100, 1)}`);
+    lines.push(`Grassi %${sep}${fmtNum((metrics.fat.total / total) * 100, 1)}`);
+    lines.push(`Proteine %${sep}${fmtNum((metrics.protein / total) * 100, 1)}`);
+    lines.push(`MSNF %${sep}${fmtNum((metrics.msnf / total) * 100, 1)}`);
+    lines.push(`Fibre %${sep}${fmtNum((metrics.fiber / total) * 100, 1)}`);
+    lines.push(`POD${sep}${fmtNum(metrics.pod, 1)}`);
+    lines.push(`PAC${sep}${fmtNum(metrics.pac, 1)}`);
+    lines.push(`POD/kg${sep}${fmtNum(metrics.podPerKg, 1)}`);
+    lines.push(`PAC/kg${sep}${fmtNum(metrics.pacPerKg, 1)}`);
+    lines.push(`Indice equilibrio${sep}${fmtNum(metrics.equilibriumIndex, 0)}`);
+    lines.push(`Temp. servizio °C${sep}${fmtNum(metrics.estimatedServingTemperature, 1)}`);
+    lines.push(`Costo/kg €${sep}${fmtNum(metrics.costPerKg, 4)}`);
+    lines.push(`Costo totale €${sep}${fmtNum(metrics.cost, 4)}`);
+    lines.push(`kcal/100g${sep}${fmtNum(metrics.kcalPer100g, 0)}`);
 
     if (evaluations.length > 0) {
       lines.push("");

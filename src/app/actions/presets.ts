@@ -15,6 +15,14 @@ export async function listPresets(): Promise<CalibrationPreset[]> {
 }
 
 export async function createPreset(input: CalibrationPresetInput): Promise<{ id: string }> {
+  const now = new Date();
+  presetSchema.parse({
+    ...input,
+    id: "tmp",
+    isSystemPreset: false,
+    createdAt: now,
+    updatedAt: now,
+  });
   const created = await prisma.calibrationPreset.create({
     data: {
       name: input.name,
@@ -27,7 +35,6 @@ export async function createPreset(input: CalibrationPresetInput): Promise<{ id:
       isSystemPreset: false,
     },
   });
-  presetSchema.parse({ ...input, id: created.id, createdAt: created.createdAt, updatedAt: created.updatedAt }).valueOf();
   revalidatePath("/presets");
   return { id: created.id };
 }
