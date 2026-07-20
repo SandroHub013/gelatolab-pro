@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum IngredientCategory {
+  acqua
+  latte
+  panna
+  latte_condensato
+  latte_in_polvere
+  yogurt
+  mascarpone
+  formaggi
+  saccarosio
+  destrosio
+  fruttosio
+  glucosio
+  sciroppo_di_glucosio
+  zucchero_invertito
+  miele
+  maltodestrina
+  inulina
+  fibre
+  polioli
+  cioccolato
+  cacao
+  frutta_fresca
+  purea_di_frutta
+  frutta_secca
+  paste_pure
+  paste_aromatizzanti
+  bevande_vegetali
+  grassi_vegetali
+  tuorlo
+  albume
+  alcolici
+  neutri
+  stabilizzanti
+  emulsionanti
+  proteine
+  sale
+  aromi
+  personalizzato
+}
+
+enum RecipeFamily {
+  base_latte
+  creme
+  cioccolato
+  frutta_con_latte
+  sorbetto
+  vegano
+  gastronomico
+  alcolico
+  granita
+  semifreddo
+  personalizzata
+}
+
+model Ingredient {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  category  IngredientCategory
+  brand     String?
+  description String?
+
+  waterPercent           Float
+  totalSolidsPercent     Float
+
+  // sugars
+  sugarsPercent          Float
+  sucrosePercent         Float?
+  dextrosePercent        Float?
+  fructosePercent        Float?
+  glucosePercent         Float?
+  lactosePercent         Float?
+  maltosePercent         Float?
+  maltodextrinPercent    Float?
+  polyolsPercent         Float?
+
+  // fats
+  fatPercent             Float
+  milkFatPercent         Float?
+  vegetableFatPercent    Float?
+
+  // other
+  proteinPercent         Float
+  msnfPercent            Float?
+  fiberPercent           Float
+  mineralsPercent        Float?
+  alcoholPercent         Float
+  podCoefficient         Float
+  pacCoefficient         Float
+  stabilizerPercent      Float?
+  emulsifierPercent      Float?
+  density                Float?
+  costPerKg              Float?
+
+  allergens              String[] @default([])
+  tags                   String[] @default([])
+  minRecommendedPercent  Float?
+  maxRecommendedPercent  Float?
+  source                 String?
+  notes                  String?
+
+  isCustom               Boolean @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // composizione derivata (per ingredienti composti — P1)
+  parentId               String?
+  parent                 Ingredient? @relation("CompositeIngredient", fields: [parentId], references: [id])
+  children               Ingredient[] @relation("CompositeIngredient")
+
+  recipeIngredients      RecipeIngredient[]
+  snapshotIngredients    SnapshotIngredient[]
+
+  @@map("ingredients")
+}
+
+model Recipe {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  family      RecipeFamily
+  targetBatchWeight Float  @default(1000)
+  servingTemperature Float?
+
+  ingredients RecipeIngredient[]
+  activePresetId String?
+  activePreset   CalibrationPreset? @relation(fields: [activePresetId], references: [id])
+  tags           String[] @default([])
+
+  preparation         String?
+  maturationTime      Int?
+  maturationTemperature Float?
+  notes               String?
+
+  version             Int      @default(1)
+  parentRecipeId      String?
+  parentRecipe        Recipe?  @relation("RecipeVersions", fields: [parentRecipeId], references: [id])
+  versions            Recipe[] @relation("RecipeVersions")
+
+  snapshots           RecipeSnapshot[]
+  ownerId             String?  // predisposizione auth v2
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id             String @id @default(cuid())
+  recipeId       String
+  recipe         Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  quantityGrams  Float
+  isLocked       Boolean @default(false)
+  isMandatory    Boolean @default(false)
+  minGrams       Float?
+  maxGrams       Float?
+  minPercent     Float?
+  maxPercent     Float?
+  optimizationWeight Float?
+  notes          String?
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeSnapshot {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  version   Int
+  name      String?
+  createdAt DateTime @default(now())
+
+  // Denormalized: snapshot of all ingredient compositions at time of save
+  ingredients SnapshotIngredient[]
+  metrics     Json?  // frozen RecipeMetrics at time of save
+
+  @@unique([recipeId, version])
+  @@map("recipe_snapshots")
+}
+
+model SnapshotIngredient {
+  id              String          @id @default(cuid())
+  snapshotId      String
+  snapshot        RecipeSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  ingredientId    String
+  ingredient      Ingredient      @relation(fields: [ingredientId], references: [id])
+  quantityGrams   Float
+  isLocked        Boolean
+  isMandatory     Boolean
+  minGrams        Float?
+  maxGrams        Float?
+  minPercent      Float?
+  maxPercent      Float?
+
+  // frozen composition values at time of snapshot
+  waterPercent        Float
+  totalSolidsPercent  Float
+  sugarsPercent       Float
+  sucrosePercent      Float?
+  dextrosePercent     Float?
+  fructosePercent     Float?
+  glucosePercent      Float?
+  lactosePercent      Float?
+  maltosePercent      Float?
+  maltodextrinPercent Float?
+  polyolsPercent      Float?
+  fatPercent          Float
+  milkFatPercent      Float?
+  vegetableFatPercent Float?
+  proteinPercent      Float
+  msnfPercent         Float?
+  fiberPercent        Float
+  mineralsPercent     Float?
+  alcoholPercent      Float
+  podCoefficient      Float
+  pacCoefficient      Float
+  stabilizerPercent   Float?
+  emulsifierPercent   Float?
+  density             Float?
+  costPerKg           Float?
+
+  @@map("snapshot_ingredients")
+}
+
+model CalibrationPreset {
+  id          String       @id @default(cuid())
+  name        String
+  description String
+  recipeFamilies RecipeFamily[]
+  targetRanges   Json    // validated by Zod: Range targets
+  objectiveWeights Json // validated by Zod: sweetness, softness, body, creaminess, stability, originalRecipeSimilarity
+  rules          Json    // validated by Zod: CalibrationRule[]
+  preferredServingTemperature Json? // Range
+
+  isSystemPreset Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  recipes        Recipe[]
+
+  @@map("calibration_presets")
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  name      String
+  description String?
+  recipes   String[] // recipe IDs
+  tags      String[] @default([])
+  isFavorite Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("collections")
+}
