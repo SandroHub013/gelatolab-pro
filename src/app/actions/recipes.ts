@@ -26,7 +26,7 @@ export async function createRecipe(input: {
 }): Promise<{ id: string; slug: string }> {
   const base = {
     name: input.name.trim(),
-    slug: slugify(input.name.trim()),
+    slug: await uniqueSlug(input.name.trim()),
     family: input.family,
     targetBatchWeight: input.targetBatchWeight,
     description: input.description?.trim() || null,
@@ -123,7 +123,7 @@ export async function duplicateRecipe(id: string, newName?: string): Promise<{ i
   const created = await prisma.recipe.create({
     data: {
       name,
-      slug: slugify(name),
+      slug: await uniqueSlug(name),
       description: original.description,
       family: original.family,
       targetBatchWeight: original.targetBatchWeight,
@@ -334,5 +334,17 @@ function slugify(s: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Genera uno slug univoco, aggiungendo un suffisso numerico in caso di collisione. */
+async function uniqueSlug(name: string): Promise<string> {
+  const base = slugify(name) || "ricetta";
+  let slug = base;
+  let n = 2;
+  while (await prisma.recipe.findUnique({ where: { slug } })) {
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+  return slug;
 }
 

@@ -75,7 +75,8 @@ export default function NewIngredientPage() {
         <CardHeader>
           <CardTitle>Composizione</CardTitle>
           <CardDescription>
-            I coefficienti POD/PAC sono calcolati automaticamente dalla composizione zuccheri.
+            I coefficienti POD/PAC vengono impostati a 0 alla creazione: inseriscili manualmente
+            dalla scheda dell&apos;ingrediente per gli ingredienti personalizzati.
           </CardDescription>
         </CardHeader>
         <CardContent>
