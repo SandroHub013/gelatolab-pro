@@ -19,6 +19,21 @@ export function formatNumberIt(value: number, decimals = 1): string {
   });
 }
 
+/**
+ * Come `formatNumberIt`, ma con numero di decimali fisso.
+ *
+ * Da usare dove i valori si leggono affiancati (barre di range, confronti
+ * prima/dopo): con i decimali variabili "18,4 → 18 (-0,4)" sembra un errore
+ * di calcolo, mentre "18,4 → 18,0 (-0,4)" è verificabile a colpo d'occhio.
+ */
+export function formatFixedIt(value: number, decimals = 1): string {
+  if (!Number.isFinite(value)) return "—";
+  return value.toLocaleString("it-IT", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
 /** Formatta un valore monetario in euro. */
 export function formatEuro(value: number, decimals = 2): string {
   if (!Number.isFinite(value)) return "—";
