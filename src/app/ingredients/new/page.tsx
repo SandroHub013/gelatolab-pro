@@ -48,8 +48,6 @@ export default function NewIngredientPage() {
           proteinPercent,
           fiberPercent,
           alcoholPercent,
-          podCoefficient: 0,
-          pacCoefficient: 0,
           costPerKg,
           allergens: [],
           tags: [],
@@ -75,8 +73,7 @@ export default function NewIngredientPage() {
         <CardHeader>
           <CardTitle>Composizione</CardTitle>
           <CardDescription>
-            I coefficienti POD/PAC vengono impostati a 0 alla creazione: inseriscili manualmente
-            dalla scheda dell&apos;ingrediente per gli ingredienti personalizzati.
+            I coefficienti POD/PAC sono calcolati automaticamente dalla composizione zuccheri.
           </CardDescription>
         </CardHeader>
         <CardContent>

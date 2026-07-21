@@ -68,10 +68,16 @@ export interface Ingredient {
   updatedAt: Date;
 }
 
-/** Versione "input" per creare/modificare un ingrediente (senza id/timestamp). */
+/**
+ * Versione "input" per creare/modificare un ingrediente (senza id/timestamp).
+ * podCoefficient/pacCoefficient sono opzionali: se omessi, il repository li
+ * deriva dalla composizione zuccheri tramite resolveSeedCoefficients.
+ */
 export type IngredientInput = Omit<
   Ingredient,
-  "id" | "createdAt" | "updatedAt" | "isCustom"
+  "id" | "createdAt" | "updatedAt" | "isCustom" | "podCoefficient" | "pacCoefficient"
 > & {
   isCustom?: boolean;
+  podCoefficient?: number;
+  pacCoefficient?: number;
 };
