@@ -9,12 +9,13 @@ declare global {
 function createPrismaClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error(
-      "DATABASE_URL non definita. Configura .env con la stringa di connessione PostgreSQL.",
-    );
+    // `next build` raccoglie i dati pagina importando questo modulo senza un DB
+    // disponibile (le route sono force-dynamic, nessuna query a build-time).
+    // Carichiamo con un placeholder così il build non fallisce; a runtime un
+    // DATABASE_URL mancante emerge come errore di connessione al primo accesso.
+    console.warn("DATABASE_URL non definita: l'app non funzionerà a runtime.");
   }
-  // Parse the connection string into pg-compatible options.
-  const parsed = new URL(url);
+  const parsed = url ? new URL(url) : new URL("postgresql://build@localhost:5432/build");
   const adapter = new PrismaPg({
     host: parsed.hostname,
     port: parsed.port ? Number(parsed.port) : 5432,
