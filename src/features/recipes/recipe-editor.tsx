@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddIngredientDialog } from "./add-ingredient-dialog";
 import {
-  Undo2, Redo2, Save, Plus, Trash2, Sparkles, AlertTriangle,
+  Undo2, Redo2, Save, Plus, Trash2, Sparkles, AlertTriangle, ChevronRight,
   FlaskConical, GitCompareArrows, Printer, Scale,
 } from "lucide-react";
 
@@ -233,6 +233,8 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
   const setBatch = useEditorStore((s) => s.setBatchWeight);
   const setPreparation = useEditorStore((s) => s.setPreparation);
   const setNotes = useEditorStore((s) => s.setNotes);
+  // Aperto di default solo se c'è già del contenuto da mostrare.
+  const hasLongText = Boolean(recipe.preparation || recipe.notes);
 
   return (
     <Card className="mb-4">
@@ -257,14 +259,25 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
           <Label htmlFor="r-desc">Descrizione</Label>
           <Input id="r-desc" value={recipe.description ?? ""} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <div className="space-y-1.5 md:col-span-3">
-          <Label htmlFor="r-prep">Procedimento</Label>
-          <Textarea id="r-prep" value={recipe.preparation ?? ""} onChange={(e) => setPreparation(e.target.value)} />
-        </div>
-        <div className="space-y-1.5 md:col-span-3">
-          <Label htmlFor="r-notes">Note</Label>
-          <Textarea id="r-notes" value={recipe.notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        {/* Testi lunghi richiusi: due textarea vuote spingevano la tabella di
+            composizione — la superficie di lavoro principale — sotto la piega. */}
+        <details className="group md:col-span-3" open={hasLongText}>
+          <summary className="inline-flex cursor-pointer select-none items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">
+            <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
+            Procedimento e note
+            {hasLongText && <Badge variant="outline">compilati</Badge>}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="r-prep">Procedimento</Label>
+              <Textarea id="r-prep" value={recipe.preparation ?? ""} onChange={(e) => setPreparation(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="r-notes">Note</Label>
+              <Textarea id="r-notes" value={recipe.notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+          </div>
+        </details>
         {preset && (
           <div className="flex items-center gap-2 md:col-span-3">
             <Badge variant="default"><Sparkles className="size-3" /> Preset attivo: {preset.name}</Badge>
