@@ -16,7 +16,7 @@ import { evaluateTargets, countOutOfRange } from "@/domain/constraints";
 import { runCalibration } from "@/app/actions/solver";
 import { applySolutionAndSnapshot } from "@/app/actions/recipes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/form-controls";
 import { Badge } from "@/components/ui/badge";
 import { RangeBar } from "./range-bar";
@@ -101,9 +101,9 @@ export function CalibrationDashboard({
           <h1 className="text-xl font-bold">Calibrazione — {recipe.name}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button render={<Link href={`/recipes/${recipe.id}/comparison`} />} variant="outline" size="sm">
+          <Link href={`/recipes/${recipe.id}/comparison`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             <GitCompareArrows className="size-4" /> Confronto
-          </Button>
+          </Link>
         </div>
       </div>
 

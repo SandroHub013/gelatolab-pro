@@ -43,8 +43,18 @@ export interface IngredientContribution {
   alcohol: number;
   stabilizers: number;
   emulsifiers: number;
+  /** POD grezzo della riga (grammi × coefficiente), non normalizzato. */
   pod: number;
+  /** PAC grezzo della riga (grammi × coefficiente), non normalizzato. */
   pac: number;
+  /**
+   * Quota della riga sul POD della miscela: `pod / peso totale`.
+   * È la grandezza da mostrare in tabella, perché la colonna somma
+   * esattamente al POD aggregato di `RecipeMetrics`.
+   */
+  podShare: number;
+  /** Quota della riga sul PAC della miscela. Vedi `podShare`. */
+  pacShare: number;
   cost: number;
   kcal: number;
 }
