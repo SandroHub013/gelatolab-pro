@@ -17,8 +17,10 @@ function createPrismaClient(): PrismaClient {
   }
   // La connection string è passata integralmente: sslmode, schema,
   // connection_limit e gli altri parametri devono essere preservati.
+  // Usa || (truthiness) per coerenza col guard sopra: DATABASE_URL="" cade nel fallback.
+  const effectiveUrl = url || "postgresql://build@localhost:5432/build";
   const adapter = new PrismaPg({
-    connectionString: url ?? "postgresql://build@localhost:5432/build",
+    connectionString: effectiveUrl,
   });
   return new PrismaClient({ adapter });
 }

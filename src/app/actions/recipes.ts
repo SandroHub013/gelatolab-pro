@@ -7,6 +7,7 @@ import {
   toDomainIngredients,
   toDomainRecipe,
 } from "@/infrastructure/repositories/mappers";
+import { slugify, uniqueSlug } from "@/lib/slug";
 import type {
   Ingredient,
   Recipe,
@@ -24,7 +25,7 @@ export async function createRecipe(input: {
 }): Promise<{ id: string; slug: string }> {
   const base = {
     name: input.name.trim(),
-    slug: await uniqueSlug(input.name.trim()),
+    slug: await uniqueSlug(input.name.trim(), "recipe"),
     family: input.family,
     targetBatchWeight: input.targetBatchWeight,
     description: input.description?.trim() || null,
@@ -104,7 +105,7 @@ export async function duplicateRecipe(id: string, newName?: string): Promise<{ i
   const created = await prisma.recipe.create({
     data: {
       name,
-      slug: await uniqueSlug(name),
+      slug: await uniqueSlug(name, "recipe"),
       description: original.description,
       family: original.family,
       targetBatchWeight: original.targetBatchWeight,
@@ -241,11 +242,6 @@ export async function saveSnapshot(
   return { snapshotId: snapshot.id };
 }
 
-export async function listIngredients(): Promise<Ingredient[]> {
-  const rows = await prisma.ingredient.findMany({ orderBy: { name: "asc" } });
-  return toDomainIngredients(rows);
-}
-
 /** Rileva se la composizione degli ingredienti è cambiata dall'ultimo snapshot. */
 export async function detectCompositionDrift(recipeId: string): Promise<
   Array<{ ingredientId: string; ingredientName: string; field: string; snapshot: number; current: number }>
@@ -288,24 +284,5 @@ export async function detectCompositionDrift(recipeId: string): Promise<
   return drift;
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
-/** Genera uno slug univoco, aggiungendo un suffisso numerico in caso di collisione. */
-async function uniqueSlug(name: string): Promise<string> {
-  const base = slugify(name) || "ricetta";
-  let slug = base;
-  let n = 2;
-  while (await prisma.recipe.findUnique({ where: { slug } })) {
-    slug = `${base}-${n}`;
-    n += 1;
-  }
-  return slug;
-}
 

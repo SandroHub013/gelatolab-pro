@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/infrastructure/database/client";
 import { toDomainIngredient } from "@/infrastructure/repositories/mappers";
 import { resolveSeedCoefficients } from "@/infrastructure/database/seed-ingredients";
+import { slugify, uniqueSlug } from "@/lib/slug";
 import type { Ingredient, IngredientInput } from "@/types";
 import type { Prisma } from "@prisma/client";
 
@@ -22,7 +23,7 @@ export async function createIngredient(input: IngredientInput): Promise<{ id: st
   const derived = resolveSeedCoefficients(input as never, isCustom);
   const data: Prisma.IngredientCreateInput = {
     name,
-    slug: await uniqueSlug(input.slug || name),
+    slug: await uniqueSlug(input.slug || name, "ingredient"),
     category: input.category,
     brand: input.brand ?? null,
     description: input.description ?? null,
@@ -82,6 +83,11 @@ export async function updateIngredient(
   const derived = resolveSeedCoefficients(merged as never, isCustom);
 
   const renamed = input.name !== undefined ? input.name.trim() : undefined;
+  // Controllo unicità nome (PRISMA unique index), escludendo se stesso.
+  if (renamed !== undefined) {
+    const other = await prisma.ingredient.findFirst({ where: { name: renamed, NOT: { id } } });
+    if (other) throw new Error(`Esiste già un ingrediente chiamato "${renamed}".`);
+  }
   const slugSource = input.slug ?? renamed;
 
   await prisma.ingredient.update({
@@ -90,7 +96,7 @@ export async function updateIngredient(
       ...patch,
       ...(renamed !== undefined ? { name: renamed } : {}),
       ...(slugSource !== undefined
-        ? { slug: await uniqueSlug(slugSource, id) }
+        ? { slug: await uniqueSlug(slugSource, "ingredient", id) }
         : {}),
       podCoefficient: input.podCoefficient ?? derived.pod,
       pacCoefficient: input.pacCoefficient ?? derived.pac,
@@ -137,27 +143,4 @@ function toSeedShape(row: {
   };
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
-/**
- * Slug normalizzato e univoco: `slug` e `name` sono @unique in schema, e la
- * collisione altrimenti emergerebbe come errore Prisma grezzo (P2002).
- */
-async function uniqueSlug(source: string, exceptId?: string): Promise<string> {
-  const base = slugify(source) || "ingrediente";
-  let slug = base;
-  let n = 2;
-  for (;;) {
-    const existing = await prisma.ingredient.findUnique({ where: { slug } });
-    if (!existing || existing.id === exceptId) return slug;
-    slug = `${base}-${n}`;
-    n += 1;
-  }
-}

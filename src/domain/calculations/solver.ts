@@ -477,7 +477,7 @@ async function solveVariant(
  * esatto: "Infeasible" contiene "feasible" e verrebbe accettato da un match
  * per sottostringa.
  */
-const FEASIBLE_STATUSES = new Set(["optimal", "primal feasible"]);
+const FEASIBLE_STATUSES = new Set(["optimal"]);
 
 function isFeasibleStatus(status: string): boolean {
   return FEASIBLE_STATUSES.has(status.trim().toLowerCase());
@@ -540,6 +540,14 @@ export async function solveCalibration(
     );
     const solvedRecipe = applyQuantities(recipe, model.rows, reconciled, batch);
     const metrics = calculateRecipe(solvedRecipe, ingredients);
+    // Sepolcro dell'arrotondamento: se reconcileRounding ha dovuto breakare
+    // (nessun candidato può assorbire il passo), la somma differisce dal batch.
+    const reconciledSum = round(reconciled.reduce((s, q) => s + q, 0), 1);
+    if (Math.abs(reconciledSum - batch) > 0.1) {
+      metrics.warnings.push(
+        `Arrotondamento non perfetto: somma ${reconciledSum}g vs peso batch ${batch}g.`,
+      );
+    }
     const evals = evaluateTargets(metrics, preset);
     const targetDeltas: Record<string, number> = {};
     for (const e of evals) targetDeltas[e.key] = e.deltaFromIdeal;
@@ -616,11 +624,20 @@ function recommendedRangeMessage(row: ModelRow, side: "min" | "max"): string {
 /** Suggerimenti sui bound derivati dai range raccomandati che stringono il modello. */
 function recommendedRangeSuggestions(model: SolverModel): string[] {
   const out: string[] = [];
+  // Solo i 3 bound più restrittivi per non sommergere l'utente (con 33 ingredienti
+  // seed tutti con maxRecommendedPercent, una ricetta a 5 ingredienti produrrebbe
+  // 5+ messaggi quasi identici). I bound attivi sono già elencati in
+  // `activeConstraints` nelle soluzioni feasible.
+  const candidates: Array<{ row: ModelRow; side: "min" | "max"; tightness: number }> = [];
   for (const r of model.rows) {
-    if (r.lbFromRecommended && r.lb > 0) out.push(recommendedRangeMessage(r, "min"));
+    if (r.lbFromRecommended && r.lb > 0)
+      candidates.push({ row: r, side: "min", tightness: r.lb });
     if (r.ubFromRecommended && Number.isFinite(r.ub))
-      out.push(recommendedRangeMessage(r, "max"));
+      candidates.push({ row: r, side: "max", tightness: -r.ub });
   }
+  candidates.sort((a, b) => b.tightness - a.tightness);
+  for (const c of candidates.slice(0, 3))
+    out.push(recommendedRangeMessage(c.row, c.side));
   return out;
 }
 
