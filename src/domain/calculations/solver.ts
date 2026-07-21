@@ -37,6 +37,9 @@ interface ModelRow {
   orig: number;
   lb: number;
   ub: number;
+  /** Il bound deriva dal range raccomandato dell'ingrediente (non da min/maxGrams). */
+  lbFromRecommended: boolean;
+  ubFromRecommended: boolean;
 }
 
 interface SolverModel {
@@ -160,6 +163,8 @@ export function buildSolverModel(
       if (!ing) return null;
       let lb = 0;
       let ub = Number.POSITIVE_INFINITY;
+      let lbFromRecommended = false;
+      let ubFromRecommended = false;
       // mandatory
       if (ri.isMandatory) lb = Math.max(lb, MANDATORY_MIN_GRAMS);
       // min/max grams
@@ -171,23 +176,49 @@ export function buildSolverModel(
       if (ri.maxPercent !== undefined)
         ub = Math.min(ub, (ri.maxPercent / 100) * batch);
       // recommended ranges dell'ingrediente
-      if (ing.minRecommendedPercent !== undefined)
-        lb = Math.max(lb, (ing.minRecommendedPercent / 100) * batch);
-      if (ing.maxRecommendedPercent !== undefined)
-        ub = Math.min(ub, (ing.maxRecommendedPercent / 100) * batch);
+      if (ing.minRecommendedPercent !== undefined) {
+        const recLb = (ing.minRecommendedPercent / 100) * batch;
+        if (recLb > lb) {
+          lb = recLb;
+          lbFromRecommended = true;
+        }
+      }
+      if (ing.maxRecommendedPercent !== undefined) {
+        const recUb = (ing.maxRecommendedPercent / 100) * batch;
+        if (recUb < ub) {
+          ub = recUb;
+          ubFromRecommended = true;
+        }
+      }
       // lock → fisso
       if (ri.isLocked) {
         lb = ri.quantityGrams;
         ub = ri.quantityGrams;
+        lbFromRecommended = false;
+        ubFromRecommended = false;
       }
       // sanity: lb <= ub
       if (lb > ub) lb = ub;
-      return { ing, ri, orig: ri.quantityGrams, lb, ub } as ModelRow & {
-        ing: Ingredient;
-      };
+      return {
+        ing,
+        ri,
+        orig: ri.quantityGrams,
+        lb,
+        ub,
+        lbFromRecommended,
+        ubFromRecommended,
+      } as ModelRow & { ing: Ingredient };
     })
     .filter((r): r is ModelRow & { ing: Ingredient } => r !== null)
-    .map((r) => ({ ingredient: r.ing, ri: r.ri, orig: r.orig, lb: r.lb, ub: r.ub }));
+    .map((r) => ({
+      ingredient: r.ing,
+      ri: r.ri,
+      orig: r.orig,
+      lb: r.lb,
+      ub: r.ub,
+      lbFromRecommended: r.lbFromRecommended,
+      ubFromRecommended: r.ubFromRecommended,
+    }));
 
   const weights = resolveWeights(preset, variant);
 
@@ -328,6 +359,12 @@ function checkBoundsFeasibility(
   model: SolverModel,
 ): { feasible: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  if (model.rows.length === 0) {
+    return {
+      feasible: false,
+      reasons: ["La ricetta non contiene ingredienti da calibrare."],
+    };
+  }
   const lockedSum = model.rows
     .filter((r) => r.ri.isLocked)
     .reduce((s, r) => s + r.orig, 0);
@@ -355,26 +392,45 @@ function checkBoundsFeasibility(
   return { feasible: reasons.length === 0, reasons };
 }
 
-/** Riconcilia l'arrotondamento a 0.1g affinché Σ = batch esattamente. */
+/**
+ * Riconcilia l'arrotondamento a 0.1g affinché Σ = batch esattamente.
+ * I bound (opzionali) impediscono che la distribuzione del residuo spinga una
+ * quantità sotto il suo minimo (o sotto zero) o sopra il suo massimo.
+ */
 export function reconcileRounding(
   quantities: number[],
   locked: boolean[],
   batch: number,
+  bounds?: Array<{ lb: number; ub: number }>,
 ): number[] {
-  const rounded = quantities.map((q) => roundGrams(q));
-  let sum = round(rounded.reduce((s, q) => s + q, 0), 1);
-  const result = [...rounded];
+  const lbs = quantities.map((_, i) => roundGrams(Math.max(0, bounds?.[i]?.lb ?? 0)));
+  const ubs = quantities.map((_, i) => {
+    const ub = bounds?.[i]?.ub;
+    return ub === undefined || !Number.isFinite(ub)
+      ? Number.POSITIVE_INFINITY
+      : roundGrams(ub);
+  });
+  const result = quantities.map((q, i) =>
+    Math.min(Math.max(roundGrams(q), lbs[i]), ubs[i]),
+  );
+  let sum = round(result.reduce((s, q) => s + q, 0), 1);
   // Indici regolabili (non bloccati), ordinati per quantità decrescente.
   const adjustable = result
     .map((q, i) => ({ q, i }))
     .filter((e) => !locked[e.i])
-    .sort((a, b) => b.q - a.q);
+    .sort((a, b) => b.q - a.q)
+    .map((e) => e.i);
   let guard = 0;
   while (Math.abs(sum - batch) >= 0.1 && adjustable.length > 0 && guard < 100000) {
     const step = sum > batch ? -0.1 : 0.1;
-    // Distribuisci un passo al primo regolabile; ruota per evitare bias.
-    const target = adjustable[guard % adjustable.length];
-    result[target.i] = roundGrams(result[target.i] + step);
+    // Solo le righe che possono assorbire il passo senza violare i bound.
+    const candidates = adjustable.filter((i) =>
+      step < 0 ? result[i] - 0.1 >= lbs[i] : result[i] + 0.1 <= ubs[i],
+    );
+    if (candidates.length === 0) break;
+    // Distribuisci un passo al primo candidato; ruota per evitare bias.
+    const target = candidates[guard % candidates.length];
+    result[target] = roundGrams(result[target] + step);
     sum = round(sum + step, 1);
     guard++;
   }
@@ -416,13 +472,15 @@ async function solveVariant(
   return { quantities, objective: sol.ObjectiveValue ?? 0, status: sol.Status };
 }
 
+/**
+ * Stati HiGHS che portano una soluzione primale utilizzabile. Il confronto è
+ * esatto: "Infeasible" contiene "feasible" e verrebbe accettato da un match
+ * per sottostringa.
+ */
+const FEASIBLE_STATUSES = new Set(["optimal", "primal feasible"]);
+
 function isFeasibleStatus(status: string): boolean {
-  const s = status.toLowerCase();
-  return (
-    s.includes("optimal") ||
-    s.includes("feasible") ||
-    s.includes("cost")
-  );
+  return FEASIBLE_STATUSES.has(status.trim().toLowerCase());
 }
 
 /**
@@ -474,7 +532,12 @@ export async function solveCalibration(
     const res = await solveVariant(model, timeoutMs);
     if (!res) continue;
     const locked = model.rows.map((r) => r.ri.isLocked);
-    const reconciled = reconcileRounding(res.quantities, locked, batch);
+    const reconciled = reconcileRounding(
+      res.quantities,
+      locked,
+      batch,
+      model.rows.map((r) => ({ lb: r.lb, ub: r.ub })),
+    );
     const solvedRecipe = applyQuantities(recipe, model.rows, reconciled, batch);
     const metrics = calculateRecipe(solvedRecipe, ingredients);
     const evals = evaluateTargets(metrics, preset);
@@ -483,9 +546,17 @@ export async function solveCalibration(
     const activeConstraints: string[] = [];
     model.rows.forEach((r, i) => {
       if (Math.abs(reconciled[i] - r.lb) < 0.05 && r.lb > 0)
-        activeConstraints.push(`${r.ingredient.name} al minimo`);
+        activeConstraints.push(
+          r.lbFromRecommended
+            ? recommendedRangeMessage(r, "min")
+            : `${r.ingredient.name} al minimo`,
+        );
       if (Number.isFinite(r.ub) && Math.abs(reconciled[i] - r.ub) < 0.05)
-        activeConstraints.push(`${r.ingredient.name} al massimo`);
+        activeConstraints.push(
+          r.ubFromRecommended
+            ? recommendedRangeMessage(r, "max")
+            : `${r.ingredient.name} al massimo`,
+        );
     });
     solutions.push({
       variant,
@@ -512,6 +583,7 @@ export async function solveCalibration(
         detail: r,
       })),
       suggestions: [
+        ...recommendedRangeSuggestions(probeModel),
         "Rimuovi alcuni lock o abbassa i minimi obbligatori.",
         "Allarga i range min/max degli ingredienti principali.",
         "Verifica che la somma dei minimi sia inferiore al peso batch.",
@@ -526,11 +598,37 @@ export async function solveCalibration(
   };
 }
 
+/**
+ * Messaggio esplicito quando un bound proviene dal range raccomandato
+ * dell'ingrediente e non da un limite impostato dall'utente sulla riga.
+ */
+function recommendedRangeMessage(row: ModelRow, side: "min" | "max"): string {
+  const min = row.ingredient.minRecommendedPercent;
+  const max = row.ingredient.maxRecommendedPercent;
+  const range = `${min ?? 0}–${max ?? 100}%`;
+  const bound = side === "min" ? "minimo" : "massimo";
+  return (
+    `${row.ingredient.name} è vincolato al ${bound} del range raccomandato (${range}). ` +
+    "Modifica i limiti nella scheda ingrediente per allargare lo spazio di calibrazione."
+  );
+}
+
+/** Suggerimenti sui bound derivati dai range raccomandati che stringono il modello. */
+function recommendedRangeSuggestions(model: SolverModel): string[] {
+  const out: string[] = [];
+  for (const r of model.rows) {
+    if (r.lbFromRecommended && r.lb > 0) out.push(recommendedRangeMessage(r, "min"));
+    if (r.ubFromRecommended && Number.isFinite(r.ub))
+      out.push(recommendedRangeMessage(r, "max"));
+  }
+  return out;
+}
+
 function buildSuggestions(
   model: SolverModel,
   reasons: string[],
 ): string[] {
-  const suggestions: string[] = [];
+  const suggestions: string[] = [...recommendedRangeSuggestions(model)];
   const lbSum = model.rows.reduce((s, r) => s + r.lb, 0);
   if (lbSum > model.batch) {
     suggestions.push(

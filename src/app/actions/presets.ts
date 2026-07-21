@@ -48,6 +48,16 @@ export async function updatePreset(
   if (row.isSystemPreset) {
     throw new Error("I preset di sistema non sono modificabili.");
   }
+  // Valida il preset risultante dal merge: le regole di rangeSchema (ideal tra
+  // min e max) devono valere sia in creazione sia in aggiornamento.
+  presetSchema.parse({
+    ...toDomainPreset(row),
+    ...Object.fromEntries(
+      Object.entries(input).filter(([, v]) => v !== undefined),
+    ),
+    id,
+    isSystemPreset: false,
+  });
   await prisma.calibrationPreset.update({
     where: { id },
     data: {
@@ -61,14 +71,5 @@ export async function updatePreset(
     },
   });
   revalidatePath("/presets");
-}
-
-export async function deletePreset(id: string): Promise<void> {
-  const row = await prisma.calibrationPreset.findUnique({ where: { id } });
-  if (!row) return;
-  if (row.isSystemPreset) {
-    throw new Error("I preset di sistema non sono eliminabili.");
-  }
-  await prisma.calibrationPreset.delete({ where: { id } });
-  revalidatePath("/presets");
+  revalidatePath(`/presets/${id}`);
 }

@@ -33,14 +33,28 @@ export function CalibrationDashboard({
   activePreset: CalibrationPreset | null;
 }) {
   const router = useRouter();
-  const [presetId, setPresetId] = useState(activePreset?.id ?? presets[0]?.id ?? "");
+  // Il select mostra solo i preset applicabili alla famiglia: il default deve
+  // appartenere a quella lista, altrimenti si calibrerebbe con un preset diverso
+  // da quello visualizzato.
+  const familyPresets = useMemo(
+    () => presets.filter((p) => p.recipeFamilies.length === 0 || p.recipeFamilies.includes(recipe.family)),
+    [presets, recipe.family],
+  );
+  const [presetId, setPresetId] = useState(() => {
+    const applicable = presets.filter(
+      (p) => p.recipeFamilies.length === 0 || p.recipeFamilies.includes(recipe.family),
+    );
+    const active = applicable.find((p) => p.id === activePreset?.id);
+    return active?.id ?? applicable[0]?.id ?? "";
+  });
   const [result, setResult] = useState<CalibrationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [running, startRunning] = useTransition();
   const [applying, startApplying] = useTransition();
 
   const preset = useMemo(
-    () => presets.find((p) => p.id === presetId) ?? null,
-    [presets, presetId],
+    () => familyPresets.find((p) => p.id === presetId) ?? null,
+    [familyPresets, presetId],
   );
 
   const metrics = useMemo(() => calculateRecipe(recipe, ingredients), [recipe, ingredients]);
@@ -50,23 +64,29 @@ export function CalibrationDashboard({
   );
   const outOfRange = countOutOfRange(evaluations);
 
-  const familyPresets = useMemo(
-    () => presets.filter((p) => p.recipeFamilies.length === 0 || p.recipeFamilies.includes(recipe.family)),
-    [presets, recipe.family],
-  );
-
   function handleCalibrate() {
     if (!preset) return;
+    setError(null);
     startRunning(async () => {
-      const r = await runCalibration(recipe.id, preset.id, { variants: ["minimal", "balanced", "cost"] });
-      setResult(r);
+      try {
+        const r = await runCalibration(recipe.id, preset.id, { variants: ["minimal", "balanced", "cost"] });
+        setResult(r);
+      } catch (err) {
+        setResult(null);
+        setError(err instanceof Error ? err.message : "Errore durante la calibrazione.");
+      }
     });
   }
 
   function handleApply(sol: CalibrationSolution) {
+    setError(null);
     startApplying(async () => {
-      await applySolutionAndSnapshot(recipe.id, sol.quantities, `Calibrazione ${SOLVER_VARIANT_LABELS[sol.variant]}`);
-      router.push(`/recipes/${recipe.id}/comparison`);
+      try {
+        await applySolutionAndSnapshot(recipe.id, sol.quantities, `Calibrazione ${SOLVER_VARIANT_LABELS[sol.variant]}`);
+        router.push(`/recipes/${recipe.id}/comparison`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Errore nel salvataggio della soluzione.");
+      }
     });
   }
 
@@ -91,7 +111,7 @@ export function CalibrationDashboard({
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="min-w-[220px] flex-1">
             <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Preset</label>
-            <Select value={presetId} onChange={(e) => { setPresetId(e.target.value); setResult(null); }}>
+            <Select value={presetId} onChange={(e) => { setPresetId(e.target.value); setResult(null); setError(null); }}>
               {familyPresets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.isSystemPreset ? " (sistema)" : ""}
@@ -99,12 +119,26 @@ export function CalibrationDashboard({
               ))}
             </Select>
           </div>
-          {preset && <div className="flex-1 text-sm text-muted-foreground">{preset.description}</div>}
+          {preset ? (
+            <div className="flex-1 text-sm text-muted-foreground">{preset.description}</div>
+          ) : (
+            <div className="flex-1 text-sm text-muted-foreground">
+              Nessun preset disponibile per questa famiglia di ricette.
+            </div>
+          )}
           <Button onClick={handleCalibrate} disabled={!preset || running} size="sm">
             <Play className="size-4" /> {running ? "Calibrazione…" : "Calibra (stessi ingredienti)"}
           </Button>
         </CardContent>
       </Card>
+
+      {error && (
+        <Card className="mb-4 border-destructive/40">
+          <CardContent className="flex items-center gap-2 p-4 text-sm text-destructive">
+            <AlertTriangle className="size-4" /> {error}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mb-2 flex items-center gap-2">
         <Sparkles className="size-4 text-primary" />

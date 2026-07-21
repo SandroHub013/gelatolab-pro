@@ -194,6 +194,32 @@ describe("solveCalibration - infeasibility", () => {
     const result = await solveCalibration(recipe, ingredients, balancedPreset);
     expect(result.feasible).toBe(false);
   }, 30000);
+
+  it("diagnostica una ricetta senza ingredienti invece di generare un LP malformato", async () => {
+    const result = await solveCalibration(recipeWith([]), [sucrose], balancedPreset);
+    expect(result.feasible).toBe(false);
+    if (result.feasible) return;
+    expect(result.conflictingConstraints.length).toBeGreaterThan(0);
+  }, 30000);
+
+  it("segnala il range raccomandato quando vincola la soluzione", async () => {
+    const boundedSucrose = makeIngredient({
+      ...sucrose,
+      minRecommendedPercent: 60,
+      maxRecommendedPercent: 70,
+    });
+    const recipe = recipeWith([
+      { id: "r1", ingredientId: "sucrose", quantityGrams: 170 },
+      { id: "r2", ingredientId: "acqua", quantityGrams: 830 },
+    ]);
+    const result = await solveCalibration(recipe, [boundedSucrose, water], balancedPreset);
+    if (!result.feasible) {
+      expect(result.suggestions.join(" ")).toContain("range raccomandato");
+      return;
+    }
+    const messages = result.solutions.flatMap((s) => s.activeConstraints).join(" ");
+    expect(messages).toContain("range raccomandato");
+  }, 30000);
 });
 
 describe("reconcileRounding", () => {
@@ -212,6 +238,25 @@ describe("reconcileRounding", () => {
     expect(out[0]).toBe(100); // 100.04 → 100 (locked, non toccato)
     const sum = out.reduce((s, v) => s + v, 0);
     expect(Math.round(sum * 10) / 10).toBe(1000);
+  });
+
+  it("non spinge una quantità sotto il suo minimo per chiudere il residuo", () => {
+    const q = [100, 200, 700];
+    const locked = [false, false, false];
+    const bounds = [
+      { lb: 100, ub: Number.POSITIVE_INFINITY },
+      { lb: 200, ub: 200 },
+      { lb: 0, ub: Number.POSITIVE_INFINITY },
+    ];
+    const out = reconcileRounding(q, locked, 900, bounds);
+    expect(out[0]).toBeGreaterThanOrEqual(100);
+    expect(out[1]).toBe(200);
+    expect(out.every((v) => v >= 0)).toBe(true);
+  });
+
+  it("non produce quantità negative senza bound espliciti", () => {
+    const out = reconcileRounding([10, 5], [false, false], 0);
+    expect(out.every((v) => v >= 0)).toBe(true);
   });
 });
 

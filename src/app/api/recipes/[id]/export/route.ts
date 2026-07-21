@@ -6,6 +6,20 @@ import { evaluateTargets } from "@/domain/constraints";
 import type { CalibrationPreset } from "@/types";
 
 /**
+ * Campo CSV sempre quotato (nomi ingrediente/ricetta possono contenere il
+ * separatore, virgolette o a capo) con neutralizzazione delle formule per i
+ * fogli di calcolo (=, +, -, @).
+ */
+function csvField(value: string | number): string {
+  const raw = String(value);
+  // I numeri negativi restano numeri: solo il testo che inizia con un
+  // carattere di formula viene prefissato.
+  const isNumeric = /^-?\d+([.,]\d+)?$/.test(raw);
+  const safe = !isNumeric && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+/**
  * Esporta una ricetta in JSON o CSV.
  * GET /api/recipes/:id/export?format=json (default) | csv&locale=it|en
  */
@@ -46,27 +60,30 @@ export async function GET(
       return dec === "," ? s.replace(".", ",") : s;
     };
 
+    const row = (fields: Array<string | number>): string =>
+      fields.map((f) => csvField(f)).join(sep);
+
     const lines: string[] = [];
 
     // Header ricetta
-    lines.push(`# Ricetta${sep}${recipe.name}`);
-    lines.push(`# Famiglia${sep}${recipe.family}`);
-    lines.push(`# Peso batch (g)${sep}${fmtNum(recipe.targetBatchWeight, 0)}`);
-    lines.push(`# Versione${sep}${recipe.version}`);
+    lines.push(row(["# Ricetta", recipe.name]));
+    lines.push(row(["# Famiglia", recipe.family]));
+    lines.push(row(["# Peso batch (g)", fmtNum(recipe.targetBatchWeight, 0)]));
+    lines.push(row(["# Versione", recipe.version]));
     lines.push("");
 
     // Header ingredienti
-    lines.push([
+    lines.push(row([
       "Ingrediente", "Categoria", "Grammi", "%",
       "Acqua", "Solidi", "Zuccheri", "Grassi", "Proteine",
       "POD", "PAC", "Costo",
-    ].join(sep));
+    ]));
 
     for (const ri of recipe.ingredients) {
       const ing = ri.ingredient;
       const pct = metrics.ingredientPercents[ri.id] ?? 0;
       const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
-      lines.push([
+      lines.push(row([
         ing.name,
         ing.category,
         fmtNum(ri.quantityGrams, 1),
@@ -79,40 +96,40 @@ export async function GET(
         contr ? fmtNum(contr.pod, 1) : "0",
         contr ? fmtNum(contr.pac, 1) : "0",
         contr ? fmtNum(contr.cost, 4) : "0",
-      ].join(sep));
+      ]));
     }
 
     lines.push("");
-    lines.push("# Metriche aggregate");
-    lines.push(`Solidi %${sep}${fmtNum((metrics.totalSolids / total) * 100, 1)}`);
-    lines.push(`Zuccheri %${sep}${fmtNum((metrics.sugars.total / total) * 100, 1)}`);
-    lines.push(`Grassi %${sep}${fmtNum((metrics.fat.total / total) * 100, 1)}`);
-    lines.push(`Proteine %${sep}${fmtNum((metrics.protein / total) * 100, 1)}`);
-    lines.push(`MSNF %${sep}${fmtNum((metrics.msnf / total) * 100, 1)}`);
-    lines.push(`Fibre %${sep}${fmtNum((metrics.fiber / total) * 100, 1)}`);
-    lines.push(`POD${sep}${fmtNum(metrics.pod, 1)}`);
-    lines.push(`PAC${sep}${fmtNum(metrics.pac, 1)}`);
-    lines.push(`POD/kg${sep}${fmtNum(metrics.podPerKg, 1)}`);
-    lines.push(`PAC/kg${sep}${fmtNum(metrics.pacPerKg, 1)}`);
-    lines.push(`Indice equilibrio${sep}${fmtNum(metrics.equilibriumIndex, 0)}`);
-    lines.push(`Temp. servizio °C${sep}${fmtNum(metrics.estimatedServingTemperature, 1)}`);
-    lines.push(`Costo/kg €${sep}${fmtNum(metrics.costPerKg, 4)}`);
-    lines.push(`Costo totale €${sep}${fmtNum(metrics.cost, 4)}`);
-    lines.push(`kcal/100g${sep}${fmtNum(metrics.kcalPer100g, 0)}`);
+    lines.push(csvField("# Metriche aggregate"));
+    lines.push(row(["Solidi %", fmtNum((metrics.totalSolids / total) * 100, 1)]));
+    lines.push(row(["Zuccheri %", fmtNum((metrics.sugars.total / total) * 100, 1)]));
+    lines.push(row(["Grassi %", fmtNum((metrics.fat.total / total) * 100, 1)]));
+    lines.push(row(["Proteine %", fmtNum((metrics.protein / total) * 100, 1)]));
+    lines.push(row(["MSNF %", fmtNum((metrics.msnf / total) * 100, 1)]));
+    lines.push(row(["Fibre %", fmtNum((metrics.fiber / total) * 100, 1)]));
+    lines.push(row(["POD", fmtNum(metrics.pod, 1)]));
+    lines.push(row(["PAC", fmtNum(metrics.pac, 1)]));
+    lines.push(row(["POD/kg", fmtNum(metrics.podPerKg, 1)]));
+    lines.push(row(["PAC/kg", fmtNum(metrics.pacPerKg, 1)]));
+    lines.push(row(["Indice equilibrio", fmtNum(metrics.equilibriumIndex, 0)]));
+    lines.push(row(["Temp. servizio °C", fmtNum(metrics.estimatedServingTemperature, 1)]));
+    lines.push(row(["Costo/kg €", fmtNum(metrics.costPerKg, 4)]));
+    lines.push(row(["Costo totale €", fmtNum(metrics.cost, 4)]));
+    lines.push(row(["kcal/100g", fmtNum(metrics.kcalPer100g, 0)]));
 
     if (evaluations.length > 0) {
       lines.push("");
-      lines.push("# Target preset");
-      lines.push(`Parametro${sep}Valore${sep}Min${sep}Ideale${sep}Max${sep}Delta`);
+      lines.push(csvField("# Target preset"));
+      lines.push(row(["Parametro", "Valore", "Min", "Ideale", "Max", "Delta"]));
       for (const e of evaluations) {
-        lines.push([
+        lines.push(row([
           e.label,
           fmtNum(e.value, 1),
           fmtNum(e.range.min, 1),
           e.range.ideal !== undefined ? fmtNum(e.range.ideal, 1) : "",
           fmtNum(e.range.max, 1),
           fmtNum(e.deltaFromIdeal, 2),
-        ].join(sep));
+        ]));
       }
     }
 

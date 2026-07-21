@@ -6,7 +6,12 @@ import type {
   SugarBreakdown,
   FatBreakdown,
 } from "@/types";
-import { DAIRY_CATEGORIES, KCAL_COEFFICIENTS } from "@/lib/constants";
+import {
+  DAIRY_CATEGORIES,
+  EQUILIBRIUM_IDEAL,
+  KCAL_COEFFICIENTS,
+  SERVING_TEMP,
+} from "@/lib/constants";
 
 /** Costruisce una mappa id → ingrediente per lookup O(1). */
 export function indexIngredients(ingredients: Ingredient[]): Map<string, Ingredient> {
@@ -270,14 +275,8 @@ export function calculateRecipe(
 
 /** Stima temperatura di servizio (°C) — euristica, valore indicativo. */
 export function estimateServingTemperature(pac: number, solidsPct: number): number {
-  // Coefficienti documentati in DECISIONS.md.
-  const base = -12;
-  const pacPerUnit = 0.4;
-  const solidsPerUnit = 0.15;
-  const idealPac = 24;
-  const idealSolids = 38;
-  const min = -20;
-  const max = -6;
+  // Coefficienti documentati in DECISIONS.md (@/lib/constants).
+  const { base, pacPerUnit, solidsPerUnit, idealPac, idealSolids, min, max } = SERVING_TEMP;
   const t = base + (pac - idealPac) * pacPerUnit - (solidsPct - idealSolids) * solidsPerUnit;
   return Math.min(max, Math.max(min, t));
 }
@@ -294,19 +293,12 @@ export function computeEquilibriumIndex(parts: {
   pod: number;
   pac: number;
 }): number {
-  const I = {
-    solids: 36,
-    sugars: 17,
-    fat: 8,
-    protein: 4,
-    pod: 18,
-    pac: 22,
-  };
+  const I = EQUILIBRIUM_IDEAL;
   // tolleranza relativa: deviazione normalizzata per valore ideale
   const dev = (v: number, ideal: number): number =>
     ideal === 0 ? 0 : Math.abs(v - ideal) / ideal;
   const totalDev =
-    dev(parts.solidsPct, I.solids) +
+    dev(parts.solidsPct, I.totalSolids) +
     dev(parts.sugarsPct, I.sugars) +
     dev(parts.fatPct, I.fat) +
     dev(parts.proteinPct, I.protein) +

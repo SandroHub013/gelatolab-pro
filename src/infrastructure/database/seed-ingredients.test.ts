@@ -36,11 +36,17 @@ describe("resolveSeedCoefficients", () => {
     expect(r.pac).toBeCloseTo(95, 1); // 50 * 190 / 100
   });
 
-  it("falls back to total sugarsPercent as sucrose when no breakdown is given", () => {
+  it("falls back to total sugarsPercent as sucrose for custom ingredients without breakdown", () => {
     // Form-created ingredient: only total sugarsPercent, no breakdown.
-    const r = resolveSeedCoefficients(makeSeed({ sugarsPercent: 80 }));
+    const r = resolveSeedCoefficients(makeSeed({ sugarsPercent: 80 }), true);
     expect(r.pod).toBeCloseTo(80, 1); // 80 * 100 / 100 (sucrose)
     expect(r.pac).toBeCloseTo(80, 1);
+  });
+
+  it("does not apply the sucrose fallback to seed ingredients", () => {
+    // Seed (non-custom) come Inulina: zuccheri totali dichiarati senza dettaglio.
+    const r = resolveSeedCoefficients(makeSeed({ sugarsPercent: 10 }));
+    expect(r).toEqual({ pod: 0, pac: 0 });
   });
 
   it("returns zero pod/pac when there are no sugars and no alcohol", () => {
