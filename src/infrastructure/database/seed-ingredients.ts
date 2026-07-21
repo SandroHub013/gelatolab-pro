@@ -293,7 +293,10 @@ const PAC_INDEX = {
  * derivato dalla composizione. Coerente con la formula del motore
  * `contributo = quantità × coeff` (spec §4).
  */
-export function resolveSeedCoefficients(ing: SeedIngredient): {
+export function resolveSeedCoefficients(
+  ing: SeedIngredient,
+  isCustom = false,
+): {
   pod: number;
   pac: number;
 } {
@@ -317,10 +320,11 @@ export function resolveSeedCoefficients(ing: SeedIngredient): {
     pac += (pct * PAC_INDEX[key]) / 100;
   }
   // Senza dettaglio zuccheri (es. ingredienti creati via form con solo il totale),
-  // approssima gli zuccheri totali come saccarosio (POD/PAC = 100). Gli ingredienti
-  // seed, che dichiarano il dettaglio, non vengono toccati (la somma è > 0).
+  // approssima gli zuccheri totali come saccarosio (POD/PAC = 100). Il fallback
+  // vale solo per gli ingredienti custom: quelli seed dichiarano il dettaglio in
+  // modo esplicito e mantengono i loro coefficienti (anche quando sono zero).
   const breakdownSum = components.reduce((s, [pct]) => s + pct, 0);
-  if (breakdownSum === 0 && ing.sugarsPercent > 0) {
+  if (isCustom && breakdownSum === 0 && ing.sugarsPercent > 0) {
     pod = (ing.sugarsPercent * POD_INDEX.sucrose) / 100;
     pac = (ing.sugarsPercent * PAC_INDEX.sucrose) / 100;
   }

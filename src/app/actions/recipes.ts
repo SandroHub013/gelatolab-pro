@@ -5,11 +5,9 @@ import { prisma } from "@/infrastructure/database/client";
 import { calculateRecipe } from "@/domain/calculations";
 import {
   toDomainIngredients,
-  toDomainPreset,
   toDomainRecipe,
 } from "@/infrastructure/repositories/mappers";
 import type {
-  CalibrationPreset,
   Ingredient,
   Recipe,
   RecipeIngredientInput,
@@ -93,23 +91,6 @@ export async function replaceRecipeIngredients(
     await tx.recipe.update({ where: { id: recipeId }, data: { updatedAt: new Date() } });
   });
   revalidatePath(`/recipes/${recipeId}`);
-}
-
-/** Aggiorna una singola riga ingrediente (per editing inline mirato). */
-export async function updateRecipeIngredient(
-  recipeIngredientId: string,
-  patch: Partial<RecipeIngredientInput>,
-): Promise<void> {
-  await prisma.recipeIngredient.update({
-    where: { id: recipeIngredientId },
-    data: patch,
-  });
-}
-
-/** Elimina una ricetta (cascade sulle righe e snapshot). */
-export async function deleteRecipe(id: string): Promise<void> {
-  await prisma.recipe.delete({ where: { id } });
-  revalidatePath("/recipes");
 }
 
 /** Duplica una ricetta in una nuova (versione 1, nuovo slug). */
@@ -258,26 +239,6 @@ export async function saveSnapshot(
 
   revalidatePath(`/recipes/${recipeId}`);
   return { snapshotId: snapshot.id };
-}
-
-export async function getRecipeWithIngredients(recipeId: string): Promise<{
-  recipe: Recipe;
-  ingredients: Ingredient[];
-  preset: CalibrationPreset | null;
-} | null> {
-  const row = await prisma.recipe.findUnique({
-    where: { id: recipeId },
-    include: {
-      ingredients: { include: { ingredient: true } },
-      activePreset: true,
-    },
-  });
-  if (!row) return null;
-  return {
-    recipe: toDomainRecipe(row),
-    ingredients: toDomainIngredients(row.ingredients.map((ri) => ri.ingredient)),
-    preset: row.activePreset ? toDomainPreset(row.activePreset) : null,
-  };
 }
 
 export async function listIngredients(): Promise<Ingredient[]> {

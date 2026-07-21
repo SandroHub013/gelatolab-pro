@@ -15,14 +15,10 @@ function createPrismaClient(): PrismaClient {
     // DATABASE_URL mancante emerge come errore di connessione al primo accesso.
     console.warn("DATABASE_URL non definita: l'app non funzionerà a runtime.");
   }
-  const parsed = url ? new URL(url) : new URL("postgresql://build@localhost:5432/build");
+  // La connection string è passata integralmente: sslmode, schema,
+  // connection_limit e gli altri parametri devono essere preservati.
   const adapter = new PrismaPg({
-    host: parsed.hostname,
-    port: parsed.port ? Number(parsed.port) : 5432,
-    user: decodeURIComponent(parsed.username),
-    password: decodeURIComponent(parsed.password),
-    database: parsed.pathname.replace(/^\//, ""),
-    ssl: false,
+    connectionString: url ?? "postgresql://build@localhost:5432/build",
   });
   return new PrismaClient({ adapter });
 }

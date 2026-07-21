@@ -45,14 +45,18 @@ export const useEditorStore = create<EditorState>()(
       hydrated: false,
       dirty: false,
 
-      hydrate: (recipe, ingredients) =>
+      hydrate: (recipe, ingredients) => {
         set({
           recipe,
           ingredients,
           ingredientIndex: new Map(ingredients.map((i) => [i.id, i])),
           hydrated: true,
           dirty: false,
-        }),
+        });
+        // Lo store è un singleton: senza reset dopo l'idratazione la cronologia
+        // undo di una ricetta resterebbe applicabile a quella caricata dopo.
+        useEditorStore.temporal.getState().clear();
+      },
 
       setRecipe: (recipe) => set({ recipe, dirty: true }),
 
