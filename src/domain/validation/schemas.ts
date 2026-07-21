@@ -26,7 +26,18 @@ export const rangeSchema = z
 
 export const targetKeySchema = z.enum(TARGET_KEYS);
 
-export const targetRangesSchema = z.record(targetKeySchema, rangeSchema);
+/**
+ * Target ranges: record parziale su TARGET_KEYS. In Zod v4 un `z.record(enumKey, ...)`
+ * richiede TUTTE le chiavi dell'enum; i preset specificano solo un sottoinsieme,
+ * quindi usiamo un oggetto partial (chiavi valide + subset ammesso).
+ */
+export const targetRangesSchema = z
+  .object(
+    Object.fromEntries(
+      TARGET_KEYS.map((k) => [k, rangeSchema]),
+    ) as Record<(typeof TARGET_KEYS)[number], typeof rangeSchema>,
+  )
+  .partial();
 
 export const objectiveWeightsSchema = z.object({
   sweetness: z.number().min(0).max(10).optional(),

@@ -27,3 +27,13 @@ Decisioni autonome prese durante lo sviluppo di GelatoLab Pro, in ordine cronolo
 | Indice equilibrio | Composito 0-100 penalizzando deviazioni da target equi (solidi ~36%, zuccheri ~17%, grassi ~8%, PAC ~22, POD ~18) | Euristica trasparente per confronto rapido varianti solver |
 | Snapshot denormalizzazione | `SnapshotIngredient` congela tutte le % e coeff dell'ingrediente al salvataggio | Storico immutabile: modifiche alla scheda ingrediente non alterano le versioni |
 | shadcn base-nova + base-ui | Componenti UI su `@base-ui/react` (non radix); rimosso `@import "shadcn/tailwind.css"` inesistente | Scaffold fornito usa base-nova; il path `shadcn/tailwind.css` non è un package npm |
+
+## Decisioni di implementazione P1 (completamento flusso §9 + fix review gate)
+
+| Contesto | Decisione | Motivazione |
+|---|---|---|
+| Finding ingredient-pod-pac-zeroed (decisione capitano) | Omessi `podCoefficient`/`pacCoefficient` dal form nuovo ingrediente; resi opzionali in `IngredientInput` | `0 ?? x === 0` bloccava `resolveSeedCoefficients`; omettere attiva il fallback automatico. L'entità `Ingredient` li mantiene required (sempre popolati a post-creazione) |
+| `resolveSeedCoefficients` senza dettaglio zuccheri | Se nessun breakdown (saccarosio/destrosio/...) è presente ma `sugarsPercent>0`, approssima il totale come saccarosio (POD/PAC=100) | Il form nuovo ingrediente raccoglie solo `sugarsPercent` totale; senza questo fallback ogni ingrediente custom resterebbe a POD/PAC=0 vanificando la decisione sopra. Gli ingredienti seed (che dichiarano il breakdown) non sono toccati (somma>0) |
+| Finding preset-edit-404 (decisione capitano) | Creata pagina `/presets/[id]/edit` (server + form client con `updatePreset`) | La pagina di dettaglio linkava a una route inesistente; `updatePreset` era irraggiungibile dalla UI |
+| `targetRangesSchema` Zod v4 | Sostituito `z.record(targetKeySchema, rangeSchema)` con `z.object({…TARGET_KEYS…}).partial()` | In Zod v4 un record con chiave enum richiede TUTTE le chiavi dell'enum; i preset specificano solo un sottoinsieme e la validazione falliva (bug latente esposto dal fix "validate-before-write") |
+| Fix review gate importati | Cherry-pick dei commit no-mistakes `3475829` (print/export, autosave constraint, slug univoco, validazione preset) e `dc2edd2` (highs come `serverExternalPackages`) | Fix già scritti e ri-verificati dal pipeline no-mistakes; riutilizzo invece di riscriverli. La decisione POD/PAC del capitano sovrascrive la variante no-mistakes (che manteneva `0`) |
