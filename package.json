@@ -21,8 +21,9 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.4.0",
     "@base-ui/react": "^1.6.0",
+    "@hookform/resolvers": "^5.4.0",
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
@@ -30,6 +31,7 @@
     "highs": "^1.15.1",
     "lucide-react": "^1.25.0",
     "next": "16.2.10",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.82.0",
@@ -44,17 +46,19 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.5",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.0.0",
     "typescript": "^5",
-    "vitest": "^4.1.10",
-    "tsx": "^4.0.0"
+    "vitest": "^4.1.10"
   }
 }
