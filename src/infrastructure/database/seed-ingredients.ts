@@ -316,6 +316,14 @@ export function resolveSeedCoefficients(ing: SeedIngredient): {
     pod += (pct * POD_INDEX[key]) / 100;
     pac += (pct * PAC_INDEX[key]) / 100;
   }
+  // Senza dettaglio zuccheri (es. ingredienti creati via form con solo il totale),
+  // approssima gli zuccheri totali come saccarosio (POD/PAC = 100). Gli ingredienti
+  // seed, che dichiarano il dettaglio, non vengono toccati (la somma è > 0).
+  const breakdownSum = components.reduce((s, [pct]) => s + pct, 0);
+  if (breakdownSum === 0 && ing.sugarsPercent > 0) {
+    pod = (ing.sugarsPercent * POD_INDEX.sucrose) / 100;
+    pac = (ing.sugarsPercent * PAC_INDEX.sucrose) / 100;
+  }
   // Alcol: forte abbassamento crioscopico (PAC elevato). ~7× la % in volume.
   pac += ing.alcoholPercent * 7;
   return { pod: round(pod, 2), pac: round(pac, 2) };
