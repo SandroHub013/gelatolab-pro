@@ -280,3 +280,64 @@ describe("euristiche", () => {
     expect(idx2).toBeLessThan(100);
   });
 });
+
+describe("contributi POD/PAC per riga", () => {
+  /**
+   * Regressione: la tabella dell'editor e la scheda tecnica mostravano
+   * `contribution.pod` (grezzo, grammi × coefficiente) sotto un totale di
+   * colonna che invece era il POD aggregato normalizzato. La colonna non
+   * sommava al proprio totale (140 g di saccarosio comparivano come "14.000"
+   * sopra un totale di "18,1").
+   */
+  const recipe = makeRecipe("base_latte", [
+    { ingredientId: "sucrose", quantityGrams: 170 },
+    { ingredientId: "dextrose", quantityGrams: 30 },
+    { ingredientId: "acqua", quantityGrams: 800 },
+  ]);
+
+  it("la somma della colonna POD è uguale al POD aggregato", () => {
+    const m = calculateRecipe(recipe, [sucrose, dextrose, water]);
+    const columnSum = m.contributions.reduce((s, c) => s + c.podShare, 0);
+    expect(columnSum).toBeCloseTo(m.pod, 3);
+  });
+
+  it("la somma della colonna PAC è uguale al PAC aggregato", () => {
+    const m = calculateRecipe(recipe, [sucrose, dextrose, water]);
+    const columnSum = m.contributions.reduce((s, c) => s + c.pacShare, 0);
+    expect(columnSum).toBeCloseTo(m.pac, 3);
+  });
+
+  it("mantiene il valore grezzo separato dalla quota normalizzata", () => {
+    const m = calculateRecipe(recipe, [sucrose, dextrose, water]);
+    const sucroseRow = m.contributions.find((c) => c.ingredientId === "sucrose")!;
+    // 170 g × coefficiente 100 = 17000 grezzo; quota = 17000 / 1000 g = 17.
+    expect(sucroseRow.pod).toBeCloseTo(17000, 4);
+    expect(sucroseRow.podShare).toBeCloseTo(17, 4);
+  });
+});
+
+describe("avviso costi mancanti", () => {
+  it("segnala gli ingredienti privi di costo invece di sottostimare in silenzio", () => {
+    const senzaCosto = makeIngredient({
+      id: "senza-costo",
+      name: "Ingrediente senza costo",
+      slug: "senza-costo",
+      category: "personalizzato",
+    });
+    const recipe = makeRecipe("base_latte", [
+      { ingredientId: "sucrose", quantityGrams: 200 },
+      { ingredientId: "senza-costo", quantityGrams: 800 },
+    ]);
+    const m = calculateRecipe(recipe, [sucrose, senzaCosto]);
+    expect(m.warnings.join(" ")).toContain("Ingrediente senza costo");
+  });
+
+  it("non segnala nulla quando tutti gli ingredienti hanno un costo", () => {
+    const recipe = makeRecipe("base_latte", [
+      { ingredientId: "sucrose", quantityGrams: 200 },
+      { ingredientId: "acqua", quantityGrams: 800 },
+    ]);
+    const m = calculateRecipe(recipe, [sucrose, water]);
+    expect(m.warnings.join(" ")).not.toContain("Costo non disponibile");
+  });
+});

@@ -114,6 +114,7 @@ export function calculateRecipe(
   };
 
   let anyMsnfDerived = false;
+  const ingredientsWithoutCost: string[] = [];
 
   for (const ri of recipe.ingredients) {
     const ing = index.get(ri.ingredientId);
@@ -130,6 +131,11 @@ export function calculateRecipe(
 
     const { msnf, derived } = deriveMsnf(ing);
     if (derived) anyMsnfDerived = true;
+    // Un costo assente vale 0 nella somma: senza avviso il costo/kg
+    // risulterebbe silenziosamente sottostimato.
+    if (ing.costPerKg === undefined || ing.costPerKg === null) {
+      ingredientsWithoutCost.push(ing.name);
+    }
 
     const c: IngredientContribution = {
       recipeIngredientId: ri.id,
@@ -149,6 +155,14 @@ export function calculateRecipe(
       emulsifiers: round((qty * (ing.emulsifierPercent ?? 0)) / 100, 4),
       pod: round(qty * ing.podCoefficient, 4),
       pac: round(qty * ing.pacCoefficient, 4),
+      podShare: round(
+        totalWeightGrams > 0 ? (qty * ing.podCoefficient) / totalWeightGrams : 0,
+        4,
+      ),
+      pacShare: round(
+        totalWeightGrams > 0 ? (qty * ing.pacCoefficient) / totalWeightGrams : 0,
+        4,
+      ),
       cost: round((qty * (ing.costPerKg ?? 0)) / 1000, 4),
       kcal: round(qty * kcalPerGram(ing), 4),
     };
@@ -221,6 +235,12 @@ export function calculateRecipe(
   if (sugars.total > 0 && sugarDetailSum > sugars.total + 1) {
     warnings.push(
       "Il dettaglio zuccheri supera il totale dichiarato per alcuni ingredienti.",
+    );
+  }
+
+  if (ingredientsWithoutCost.length > 0) {
+    warnings.push(
+      `Costo non disponibile per ${ingredientsWithoutCost.length} ingrediente/i (${ingredientsWithoutCost.join(", ")}): il costo indicato è sottostimato.`,
     );
   }
 

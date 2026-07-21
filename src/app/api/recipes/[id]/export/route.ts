@@ -93,8 +93,8 @@ export async function GET(
         contr ? fmtNum(contr.sugars, 0) : "0",
         contr ? fmtNum(contr.fat, 0) : "0",
         contr ? fmtNum(contr.protein, 0) : "0",
-        contr ? fmtNum(contr.pod, 1) : "0",
-        contr ? fmtNum(contr.pac, 1) : "0",
+        contr ? fmtNum(contr.podShare, 1) : "0",
+        contr ? fmtNum(contr.pacShare, 1) : "0",
         contr ? fmtNum(contr.cost, 4) : "0",
       ]));
     }
@@ -169,8 +169,8 @@ export async function GET(
         sugars: contr?.sugars ?? 0,
         fat: contr?.fat ?? 0,
         protein: contr?.protein ?? 0,
-        pod: contr?.pod ?? 0,
-        pac: contr?.pac ?? 0,
+        pod: contr?.podShare ?? 0,
+        pac: contr?.pacShare ?? 0,
         cost: contr?.cost ?? 0,
       };
     }),

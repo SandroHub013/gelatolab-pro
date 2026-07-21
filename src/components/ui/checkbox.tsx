@@ -26,7 +26,10 @@ function Checkbox({
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        "peer size-4 shrink-0 rounded-[4px] border border-input bg-background shadow-xs transition-colors",
+        // `inline-flex` è obbligatorio: Base UI rende la Root come <span>, e su un
+        // elemento `display: inline` le utility di dimensione (size-4) non hanno
+        // effetto — la casella collasserebbe a pochi px, diventando incliccabile.
+        "peer inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input bg-background shadow-xs transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
         "data-[checked]:border-primary data-[checked]:bg-primary data-[checked]:text-primary-foreground",
         "disabled:cursor-not-allowed disabled:opacity-50",
