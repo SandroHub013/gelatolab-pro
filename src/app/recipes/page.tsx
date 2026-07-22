@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { calculateRecipe } from "@/domain/calculations";
-import { findAllRecipes, findAllIngredients } from "@/infrastructure/repositories/recipe-repository";
+import {
+  findAllRecipes,
+  findAllIngredients,
+} from "@/infrastructure/repositories/recipe-repository";
 import { RECIPE_FAMILY_LABELS, RECIPE_FAMILIES } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -33,11 +36,13 @@ export default async function RecipesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Ricettario</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] sm:text-3xl">
+            Ricettario
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {recipes.length} ricette · ricerca, ordina e duplica
           </p>
         </div>
@@ -46,14 +51,21 @@ export default async function RecipesPage() {
         </Link>
       </div>
 
-      <RecipesListClient recipes={rows} families={RECIPE_FAMILIES} familyLabels={RECIPE_FAMILY_LABELS} />
+      <RecipesListClient
+        recipes={rows}
+        families={RECIPE_FAMILIES}
+        familyLabels={RECIPE_FAMILY_LABELS}
+      />
 
       {rows.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
               Nessuna ricetta.{" "}
-              <Link href="/recipes/new" className="font-medium text-primary underline">
+              <Link
+                href="/recipes/new"
+                className="font-medium text-primary underline"
+              >
                 Crea la prima
               </Link>
               .
