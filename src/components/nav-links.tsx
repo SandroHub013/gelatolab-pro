@@ -2,7 +2,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen, Beaker, LayoutDashboard, SlidersHorizontal, FlaskConical,
+  BookOpen,
+  Beaker,
+  LayoutDashboard,
+  SlidersHorizontal,
+  FlaskConical,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,7 +38,10 @@ function isActive(pathname: string, href: string): boolean {
 export function SidebarNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Navigazione principale" className="flex flex-1 flex-col gap-1 p-2">
+    <nav
+      aria-label="Navigazione principale"
+      className="flex flex-1 flex-col gap-1 px-2 py-3"
+    >
       {navItems.map((item) => {
         const active = isActive(pathname, item.href);
         return (
@@ -43,9 +50,9 @@ export function SidebarNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
               active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-xs ring-1 ring-sidebar-border"
                 : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
             )}
           >
@@ -61,7 +68,10 @@ export function SidebarNav() {
 export function MobileNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Navigazione principale" className="flex flex-1 items-center gap-1 overflow-x-auto">
+    <nav
+      aria-label="Navigazione principale"
+      className="flex flex-1 items-center justify-end gap-0.5 overflow-x-auto"
+    >
       {navItems.map((item) => {
         const active = isActive(pathname, item.href);
         return (
@@ -70,8 +80,10 @@ export function MobileNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-              active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-medium transition-colors duration-150 sm:w-auto sm:gap-1.5 sm:px-2.5",
+              active
+                ? "bg-accent text-accent-foreground ring-1 ring-border"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             <item.icon className="size-3.5" />

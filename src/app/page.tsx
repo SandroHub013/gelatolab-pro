@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { calculateRecipe, formatEuro, formatNumberIt } from "@/domain/calculations";
+import {
+  calculateRecipe,
+  formatEuro,
+  formatNumberIt,
+} from "@/domain/calculations";
 import { evaluateTargets, countOutOfRange } from "@/domain/constraints";
 import {
   findAllRecipes,
@@ -7,10 +11,22 @@ import {
   findAllIngredients,
 } from "@/infrastructure/repositories/recipe-repository";
 import { RECIPE_FAMILY_LABELS } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Beaker, Plus, FlaskConical, SlidersHorizontal, TriangleAlert } from "lucide-react";
+import {
+  Beaker,
+  Plus,
+  FlaskConical,
+  SlidersHorizontal,
+  TriangleAlert,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -37,22 +53,42 @@ export default async function DashboardPage() {
 
   const stats = [
     { label: "Ricette", value: recipes.length, icon: Beaker, href: "/recipes" },
-    { label: "Ingredienti", value: ingredients.length, icon: FlaskConical, href: "/ingredients" },
-    { label: "Preset", value: presets.length, icon: SlidersHorizontal, href: "/presets" },
-    { label: "Da ricalibrare", value: outOfRange.length, icon: TriangleAlert, href: "/recipes" },
+    {
+      label: "Ingredienti",
+      value: ingredients.length,
+      icon: FlaskConical,
+      href: "/ingredients",
+    },
+    {
+      label: "Preset",
+      value: presets.length,
+      icon: SlidersHorizontal,
+      href: "/presets",
+    },
+    {
+      label: "Da ricalibrare",
+      value: outOfRange.length,
+      icon: TriangleAlert,
+      href: "/recipes",
+    },
   ];
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] sm:text-3xl">
+            Dashboard
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
             Panoramica del laboratorio: ricette recenti e fuori calibrazione.
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/recipes" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link
+            href="/recipes"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
             <Beaker className="size-4" /> Ricettario
           </Link>
           <Link href="/recipes/new" className={buttonVariants({ size: "sm" })}>
@@ -63,15 +99,23 @@ export default async function DashboardPage() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map((s) => (
-          <Link key={s.label} href={s.href}>
-            <Card className="transition-colors hover:bg-muted/50">
+          <Link
+            key={s.label}
+            href={s.href}
+            className="rounded-2xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          >
+            <Card className="h-full transition-[border-color,background-color] duration-150 hover:border-primary/25 hover:bg-primary/[0.025]">
               <CardContent className="flex items-center gap-3 p-4">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10">
                   <s.icon className="size-5" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold leading-none tabular-nums">{s.value}</div>
-                  <div className="text-xs text-muted-foreground">{s.label}</div>
+                  <div className="text-2xl font-bold leading-none tracking-tight tabular-nums">
+                    {s.value}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {s.label}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -87,10 +131,17 @@ export default async function DashboardPage() {
               <CardDescription>Ultimi aggiornamenti</CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
+          <CardContent className="flex flex-col gap-1 px-3 pb-3">
             {recent.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Nessuna ricetta. <Link href="/recipes/new" className="font-medium text-primary underline">Creane una</Link>.
+                Nessuna ricetta.{" "}
+                <Link
+                  href="/recipes/new"
+                  className="font-medium text-primary underline"
+                >
+                  Creane una
+                </Link>
+                .
               </p>
             )}
             {recent.map((r) => {
@@ -99,15 +150,16 @@ export default async function DashboardPage() {
                 <Link
                   key={r.id}
                   href={`/recipes/${r.id}/editor`}
-                  className="flex items-center justify-between rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  className="grid gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors duration-150 hover:bg-muted sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 >
                   <div className="min-w-0">
                     <div className="truncate font-medium">{r.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {RECIPE_FAMILY_LABELS[r.family]} · {formatNumberIt(metrics.totalWeightGrams, 0)}g
+                      {RECIPE_FAMILY_LABELS[r.family]} ·{" "}
+                      {formatNumberIt(metrics.totalWeightGrams, 0)}g
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3 text-xs tabular-nums text-muted-foreground">
+                  <div className="grid grid-cols-3 gap-3 text-xs tabular-nums text-muted-foreground sm:flex sm:shrink-0">
                     <span>POD {formatNumberIt(metrics.pod, 1)}</span>
                     <span>PAC {formatNumberIt(metrics.pac, 1)}</span>
                     <span>{formatEuro(metrics.costPerKg)}/kg</span>
@@ -124,9 +176,11 @@ export default async function DashboardPage() {
               <TriangleAlert className="size-4 text-amber-500" />
               Fuori calibrazione
             </CardTitle>
-            <CardDescription>Ricette con target non raggiunti rispetto al preset attivo</CardDescription>
+            <CardDescription>
+              Ricette con target non raggiunti rispetto al preset attivo
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
+          <CardContent className="flex flex-col gap-1 px-3 pb-3">
             {outOfRange.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 Tutte le ricette con preset sono nel range. ✓
@@ -136,7 +190,7 @@ export default async function DashboardPage() {
               <Link
                 key={r.id}
                 href={`/recipes/${r.id}/calibration`}
-                className="flex items-center justify-between rounded-md px-2 py-2 text-sm hover:bg-muted"
+                className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-150 hover:bg-muted"
               >
                 <span className="truncate font-medium">{r.name}</span>
                 <Badge variant="warning">{r.count} target fuori</Badge>
