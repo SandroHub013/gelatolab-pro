@@ -246,7 +246,9 @@ function SolutionCard({
         <CardDescription className="text-xs">Δ costo {diff.costDelta >= 0 ? "+" : ""}{formatEuro(diff.costDelta)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-2 text-sm">
-        <div className="grid grid-cols-2 gap-1 text-xs">
+        {/* gap-x ampio: senza separazione le due colonne si leggono come una
+            sola riga e l'etichetta della seconda sembra appartenere alla prima. */}
+        <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs">
           <Metric label="POD" a={originalMetrics.pod} b={solution.metrics.pod} />
           <Metric label="PAC" a={originalMetrics.pac} b={solution.metrics.pac} />
           <Metric label="Solidi %" a={pct(originalMetrics.totalSolids, originalMetrics)} b={pct(solution.metrics.totalSolids, solution.metrics)} />
