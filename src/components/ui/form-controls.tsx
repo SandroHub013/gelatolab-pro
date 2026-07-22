@@ -1,11 +1,14 @@
 import { cn } from "@/lib/utils";
 
-function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({
+  className,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       data-slot="input"
       className={cn(
-        "h-8 w-full rounded-md border border-input bg-background px-2.5 py-1 text-sm tabular-nums shadow-xs transition-colors",
+        "h-9 w-full rounded-lg border border-input bg-card px-2.5 py-1 text-sm tabular-nums shadow-xs transition-[border-color,box-shadow,background-color] duration-150",
         "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
         "disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive",
         className,
@@ -17,7 +20,10 @@ function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
 
 export { Input };
 
-function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
+function Label({
+  className,
+  ...props
+}: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
       data-slot="label"
@@ -33,12 +39,15 @@ function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelEleme
 
 export { Label };
 
-function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function Textarea({
+  className,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       data-slot="textarea"
       className={cn(
-        "min-h-[80px] w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm shadow-xs transition-colors",
+        "min-h-[80px] w-full rounded-lg border border-input bg-card px-2.5 py-1.5 text-sm shadow-xs transition-[border-color,box-shadow,background-color] duration-150",
         "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
@@ -50,12 +59,15 @@ function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLText
 
 export { Textarea };
 
-function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+function Select({
+  className,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       data-slot="select"
       className={cn(
-        "h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-xs transition-colors",
+        "h-9 w-full rounded-lg border border-input bg-card px-2.5 py-1 text-sm shadow-xs transition-[border-color,box-shadow,background-color] duration-150",
         "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,

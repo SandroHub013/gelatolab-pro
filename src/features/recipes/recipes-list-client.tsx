@@ -25,7 +25,8 @@ export interface RecipeListRow {
   updatedAt: string;
 }
 
-type SortKey = "updatedAt" | "name" | "weight" | "pod" | "pac" | "costPerKg" | "equilibrium";
+type SortKey =
+  "updatedAt" | "name" | "weight" | "pod" | "pac" | "costPerKg" | "equilibrium";
 
 export function RecipesListClient({
   recipes,
@@ -94,7 +95,11 @@ export function RecipesListClient({
             className="pl-8"
           />
         </div>
-        <Select value={family} onChange={(e) => setFamily(e.target.value)} className="w-auto min-w-[160px]">
+        <Select
+          value={family}
+          onChange={(e) => setFamily(e.target.value)}
+          className="w-auto min-w-[160px]"
+        >
           <option value="">Tutte le famiglie</option>
           {families.map((f) => (
             <option key={f} value={f}>
@@ -105,49 +110,97 @@ export function RecipesListClient({
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overscroll-x-contain">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left">
-                  <SortButton label="Nome" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+                  <SortButton
+                    label="Nome"
+                    active={sortKey === "name"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("name")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-left">Famiglia</th>
                 <th className="px-3 py-2 text-right">
-                  <SortButton label="Peso" active={sortKey === "weight"} dir={sortDir} onClick={() => toggleSort("weight")} />
+                  <SortButton
+                    label="Peso"
+                    active={sortKey === "weight"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("weight")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-right">
-                  <SortButton label="POD" active={sortKey === "pod"} dir={sortDir} onClick={() => toggleSort("pod")} />
+                  <SortButton
+                    label="POD"
+                    active={sortKey === "pod"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("pod")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-right">
-                  <SortButton label="PAC" active={sortKey === "pac"} dir={sortDir} onClick={() => toggleSort("pac")} />
+                  <SortButton
+                    label="PAC"
+                    active={sortKey === "pac"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("pac")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-right">
-                  <SortButton label="Eq" active={sortKey === "equilibrium"} dir={sortDir} onClick={() => toggleSort("equilibrium")} />
+                  <SortButton
+                    label="Eq"
+                    active={sortKey === "equilibrium"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("equilibrium")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-right">
-                  <SortButton label="€/kg" active={sortKey === "costPerKg"} dir={sortDir} onClick={() => toggleSort("costPerKg")} />
+                  <SortButton
+                    label="€/kg"
+                    active={sortKey === "costPerKg"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("costPerKg")}
+                  />
                 </th>
                 <th className="px-3 py-2 text-right">Azioni</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                <tr
+                  key={r.id}
+                  className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-muted/40"
+                >
                   <td className="px-3 py-2">
-                    <Link href={`/recipes/${r.id}/editor`} className="font-medium hover:underline">
+                    <Link
+                      href={`/recipes/${r.id}/editor`}
+                      className="font-medium hover:underline"
+                    >
                       {r.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{r.ingredientCount} ingredienti</div>
+                    <div className="text-xs text-muted-foreground">
+                      {r.ingredientCount} ingredienti
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary">{r.familyLabel}</Badge>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatNumberIt(r.weight, 0)}g</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatNumberIt(r.pod, 1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatNumberIt(r.pac, 1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatNumberIt(r.equilibrium, 0)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatEuro(r.costPerKg)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatNumberIt(r.weight, 0)}g
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatNumberIt(r.pod, 1)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatNumberIt(r.pac, 1)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatNumberIt(r.equilibrium, 0)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatEuro(r.costPerKg)}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       <Button
@@ -188,9 +241,14 @@ function SortButton({
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 hover:text-foreground">
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
       {label}
-      <ArrowUpDown className={`size-3 ${active ? "opacity-100" : "opacity-30"} ${active && dir === "asc" ? "rotate-180" : ""}`} />
+      <ArrowUpDown
+        className={`size-3 ${active ? "opacity-100" : "opacity-30"} ${active && dir === "asc" ? "rotate-180" : ""}`}
+      />
     </button>
   );
 }
