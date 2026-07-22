@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { Ingredient } from "@/types";
 import { INGREDIENT_CATEGORY_LABELS } from "@/types";
+import { formatFixedIt } from "@/domain/calculations";
 import { Input } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +80,7 @@ export function AddIngredientDialog({
                   <td className="px-3 py-1.5">
                     <div className="font-medium">{ing.name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {INGREDIENT_CATEGORY_LABELS[ing.category]} · POD {ing.podCoefficient.toFixed(0)} / PAC {ing.pacCoefficient.toFixed(0)}
+                      {INGREDIENT_CATEGORY_LABELS[ing.category]} · POD {formatFixedIt(ing.podCoefficient, 0)} / PAC {formatFixedIt(ing.pacCoefficient, 0)}
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right">
