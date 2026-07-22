@@ -17,7 +17,7 @@ export function AddIngredientDialog({
 }: {
   allIngredients: Ingredient[];
   usedIds: Set<string>;
-  onAdd: (ingredientId: string, grams: number) => void;
+  onAdd: (ingredient: Ingredient, grams: number) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -89,7 +89,7 @@ export function AddIngredientDialog({
                       <Button
                         size="xs"
                         onClick={() => {
-                          onAdd(ing.id, 0);
+                          onAdd(ing, 0);
                           onClose();
                         }}
                       >

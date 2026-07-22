@@ -133,8 +133,8 @@ export function RecipeEditor({
                 <AddIngredientDialog
                   allIngredients={allIngredients}
                   usedIds={new Set(recipe.ingredients.map((ri) => ri.ingredientId))}
-                  onAdd={(id, grams) => {
-                    useEditorStore.getState().addIngredient(id, grams);
+                  onAdd={(ingredient, grams) => {
+                    useEditorStore.getState().addIngredient(ingredient, grams);
                   }}
                   onClose={() => setShowAdd(false)}
                 />

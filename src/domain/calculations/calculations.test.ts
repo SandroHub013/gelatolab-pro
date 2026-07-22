@@ -341,3 +341,25 @@ describe("avviso costi mancanti", () => {
     expect(m.warnings.join(" ")).not.toContain("Costo non disponibile");
   });
 });
+
+describe("ingrediente non risolvibile", () => {
+  /**
+   * Regressione: l'editor aggiungeva la riga alla ricetta senza inserire
+   * l'anagrafica nella lista degli ingredienti dello store, quindi
+   * `calculateRecipe` non riusciva a risolverla e il nuovo ingrediente non
+   * contribuiva ad alcuna metrica finché non si ricaricava la pagina.
+   * Il motore deve rendere quel caso evidente, non silenzioso.
+   */
+  it("segnala e ignora una riga il cui ingrediente non è nella lista", () => {
+    const recipe = makeRecipe("base_latte", [
+      { ingredientId: "sucrose", quantityGrams: 200 },
+      { ingredientId: "fantasma", quantityGrams: 800 },
+    ]);
+    const m = calculateRecipe(recipe, [sucrose]);
+    // Il peso totale resta la somma delle righe dichiarate…
+    expect(m.totalWeightGrams).toBe(1000);
+    // …ma i contributi contengono solo l'ingrediente risolvibile.
+    expect(m.contributions).toHaveLength(1);
+    expect(m.warnings.join(" ")).toContain("non trovato");
+  });
+});
