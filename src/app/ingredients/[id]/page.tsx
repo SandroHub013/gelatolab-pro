@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/infrastructure/database/client";
 import { toDomainIngredient } from "@/infrastructure/repositories/mappers";
 import { INGREDIENT_CATEGORY_LABELS } from "@/types";
+import { formatEuro } from "@/domain/calculations";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -55,7 +56,7 @@ export default async function IngredientDetailPage({ params }: { params: Promise
             <MetricCard label="Fibre" value={`${ing.fiberPercent} %`} />
             <MetricCard label="POD" value={String(ing.podCoefficient)} />
             <MetricCard label="PAC" value={String(ing.pacCoefficient)} />
-            <MetricCard label="Costo/kg" value={ing.costPerKg ? `€ ${ing.costPerKg.toFixed(2)}` : "—"} />
+            <MetricCard label="Costo/kg" value={ing.costPerKg ? formatEuro(ing.costPerKg) : "—"} />
             <MetricCard label="Alcol" value={`${ing.alcoholPercent} %`} />
             <MetricCard label="Densità" value={ing.density ? `${ing.density} g/ml` : "—"} />
             {ing.msnfPercent !== undefined && (

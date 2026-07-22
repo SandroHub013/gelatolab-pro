@@ -6,6 +6,10 @@ import createHighs, { type Highs } from "highs";
  *
  * In Node highs carica il .wasm dal proprio package automaticamente;
  * nessuna configurazione locateFile necessaria lato server.
+ *
+ * Nota: per il corretto funzionamento in produzione Next.js, il package
+ * `highs` è escluso dal bundle tramite `serverExternalPackages` in
+ * next.config.ts, così il WASM rimane accessibile via path relativo.
  */
 let highsPromise: Promise<Highs> | null = null;
 

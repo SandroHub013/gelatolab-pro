@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   useReactTable,
@@ -15,7 +15,7 @@ import { replaceRecipeIngredients, updateRecipeMeta } from "@/app/actions/recipe
 import type { CalibrationPreset, Ingredient, Recipe, RecipeFamily } from "@/types";
 import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILIES, RECIPE_FAMILY_LABELS } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/form-controls";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddIngredientDialog } from "./add-ingredient-dialog";
 import {
-  Undo2, Redo2, Save, Plus, Trash2, Sparkles,
+  Undo2, Redo2, Save, Plus, Trash2, Sparkles, AlertTriangle, ChevronRight,
   FlaskConical, GitCompareArrows, Printer, Scale,
 } from "lucide-react";
 
@@ -45,7 +45,11 @@ export function RecipeEditor({
   const markSaved = useEditorStore((s) => s.markSaved);
 
   const [showAdd, setShowAdd] = useState(false);
-  const [pending, startTransition] = useTransition();
+  // Stato di salvataggio esplicito. Non si usa `useTransition`: le Server Action
+  // chiamano `revalidatePath`, e il refresh RSC che ne consegue resta dentro la
+  // transizione, così `isPending` non torna mai a false e il badge rimane
+  // bloccato su "Salvataggio…" anche a scrittura completata.
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Idrata lo store al mount (e quando cambia la ricetta iniziale).
@@ -58,42 +62,46 @@ export function RecipeEditor({
   useEffect(() => {
     if (!dirty || !recipe || !hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      startTransition(async () => {
-        try {
-          // Salva meta + righe.
-          await Promise.all([
-            updateRecipeMeta(recipe.id, {
-              name: recipe.name,
-              family: recipe.family,
-              targetBatchWeight: recipe.targetBatchWeight,
-              description: recipe.description,
-              preparation: recipe.preparation,
-              notes: recipe.notes,
-            }),
-            replaceRecipeIngredients(
-              recipe.id,
-              recipe.ingredients.map((ri) => ({
-                ingredientId: ri.ingredientId,
-                quantityGrams: ri.quantityGrams,
-                isLocked: ri.isLocked,
-                isMandatory: ri.isMandatory,
-                minGrams: ri.minGrams,
-                maxGrams: ri.maxGrams,
-                minPercent: ri.minPercent,
-                maxPercent: ri.maxPercent,
-                optimizationWeight: ri.optimizationWeight,
-                notes: ri.notes,
-              })),
-            ),
-          ]);
-          markSaved();
-        } catch (err) {
-          console.error("Auto-save fallito:", err);
-        }
-      });
+    let cancelled = false;
+    saveTimer.current = setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        // Salva meta + righe.
+        await Promise.all([
+          updateRecipeMeta(recipe.id, {
+            name: recipe.name,
+            family: recipe.family,
+            targetBatchWeight: recipe.targetBatchWeight,
+            description: recipe.description,
+            preparation: recipe.preparation,
+            notes: recipe.notes,
+          }),
+          replaceRecipeIngredients(
+            recipe.id,
+            recipe.ingredients.map((ri) => ({
+              ingredientId: ri.ingredientId,
+              quantityGrams: ri.quantityGrams,
+              isLocked: ri.isLocked,
+              isMandatory: ri.isMandatory,
+              minGrams: ri.minGrams,
+              maxGrams: ri.maxGrams,
+              minPercent: ri.minPercent,
+              maxPercent: ri.maxPercent,
+              optimizationWeight: ri.optimizationWeight,
+              notes: ri.notes,
+            })),
+          ),
+        ]);
+        if (cancelled) return;
+        markSaved();
+        setSaveState("idle");
+      } catch (err) {
+        console.error("Auto-save fallito:", err);
+        if (!cancelled) setSaveState("error");
+      }
     }, 1500);
     return () => {
+      cancelled = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [dirty, recipe, hydrated, markSaved]);
@@ -105,7 +113,7 @@ export function RecipeEditor({
   return (
     <TooltipProvider>
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <EditorToolbar recipeId={recipe.id} pending={pending} />
+        <EditorToolbar recipeId={recipe.id} saveState={saveState} />
 
         <RecipeMetaForm preset={preset} />
 
@@ -117,7 +125,7 @@ export function RecipeEditor({
           <div className="flex items-center gap-2">
             <Dialog open={showAdd} onOpenChange={setShowAdd}>
               <DialogTrigger>
-                <Button render={<span />}>
+                <Button>
                   <Plus className="size-4" /> Aggiungi ingrediente
                 </Button>
               </DialogTrigger>
@@ -125,8 +133,8 @@ export function RecipeEditor({
                 <AddIngredientDialog
                   allIngredients={allIngredients}
                   usedIds={new Set(recipe.ingredients.map((ri) => ri.ingredientId))}
-                  onAdd={(id, grams) => {
-                    useEditorStore.getState().addIngredient(id, grams);
+                  onAdd={(ingredient, grams) => {
+                    useEditorStore.getState().addIngredient(ingredient, grams);
                   }}
                   onClose={() => setShowAdd(false)}
                 />
@@ -135,15 +143,15 @@ export function RecipeEditor({
             <ScaleToBatchButton />
           </div>
           <div className="flex gap-2">
-            <Button render={<Link href={`/recipes/${recipe.id}/calibration`} />} variant="outline" size="sm">
+            <Link href={`/recipes/${recipe.id}/calibration`} className={buttonVariants({ variant: "outline", size: "sm" })}>
               <Sparkles className="size-4" /> Calibrazione
-            </Button>
-            <Button render={<Link href={`/recipes/${recipe.id}/comparison`} />} variant="outline" size="sm">
+            </Link>
+            <Link href={`/recipes/${recipe.id}/comparison`} className={buttonVariants({ variant: "outline", size: "sm" })}>
               <GitCompareArrows className="size-4" /> Confronto
-            </Button>
-            <Button render={<Link href={`/recipes/${recipe.id}/print`} />} variant="outline" size="sm">
+            </Link>
+            <Link href={`/recipes/${recipe.id}/print`} className={buttonVariants({ variant: "outline", size: "sm" })}>
               <Printer className="size-4" /> Scheda
-            </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -151,12 +159,12 @@ export function RecipeEditor({
   );
 }
 
-function EditorToolbar({ recipeId, pending }: { recipeId: string; pending: boolean }) {
+function EditorToolbar({ recipeId, saveState }: { recipeId: string; saveState: SaveState }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-1">
         <UndoRedoButtons />
-        <SaveStatus pending={pending} />
+        <SaveStatus saveState={saveState} />
       </div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Link href="/recipes" className="hover:text-foreground">← Ricettario</Link>
@@ -195,11 +203,26 @@ function UndoRedoButtons() {
   );
 }
 
-function SaveStatus({ pending }: { pending: boolean }) {
+type SaveState = "idle" | "saving" | "error";
+
+function SaveStatus({ saveState }: { saveState: SaveState }) {
   const dirty = useEditorStore((s) => s.dirty);
-  if (pending) return <Badge variant="secondary"><Save className="size-3 animate-pulse" /> Salvataggio…</Badge>;
-  if (dirty) return <Badge variant="warning">Modifiche non salvate</Badge>;
-  return <Badge variant="success">Salvato</Badge>;
+  if (saveState === "error") {
+    return (
+      <Badge variant="destructive" role="status">
+        <AlertTriangle className="size-3" /> Salvataggio non riuscito — modifiche solo locali
+      </Badge>
+    );
+  }
+  if (saveState === "saving") {
+    return (
+      <Badge variant="secondary" role="status">
+        <Save className="size-3 animate-pulse" /> Salvataggio…
+      </Badge>
+    );
+  }
+  if (dirty) return <Badge variant="warning" role="status">Modifiche non salvate</Badge>;
+  return <Badge variant="success" role="status">Salvato</Badge>;
 }
 
 function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
@@ -210,6 +233,9 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
   const setBatch = useEditorStore((s) => s.setBatchWeight);
   const setPreparation = useEditorStore((s) => s.setPreparation);
   const setNotes = useEditorStore((s) => s.setNotes);
+  const hasLongText = Boolean(recipe.preparation || recipe.notes);
+  // Aperto di default solo se c'è già del contenuto da mostrare.
+  const [longTextOpen, setLongTextOpen] = useState(() => hasLongText);
 
   return (
     <Card className="mb-4">
@@ -234,14 +260,29 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
           <Label htmlFor="r-desc">Descrizione</Label>
           <Input id="r-desc" value={recipe.description ?? ""} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <div className="space-y-1.5 md:col-span-3">
-          <Label htmlFor="r-prep">Procedimento</Label>
-          <Textarea id="r-prep" value={recipe.preparation ?? ""} onChange={(e) => setPreparation(e.target.value)} />
-        </div>
-        <div className="space-y-1.5 md:col-span-3">
-          <Label htmlFor="r-notes">Note</Label>
-          <Textarea id="r-notes" value={recipe.notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        {/* Testi lunghi richiusi: due textarea vuote spingevano la tabella di
+            composizione — la superficie di lavoro principale — sotto la piega. */}
+        <details
+          className="group md:col-span-3"
+          open={longTextOpen}
+          onToggle={(e) => setLongTextOpen(e.currentTarget.open)}
+        >
+          <summary className="inline-flex cursor-pointer select-none items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">
+            <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
+            Procedimento e note
+            {hasLongText && <Badge variant="outline">compilati</Badge>}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="r-prep">Procedimento</Label>
+              <Textarea id="r-prep" value={recipe.preparation ?? ""} onChange={(e) => setPreparation(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="r-notes">Note</Label>
+              <Textarea id="r-notes" value={recipe.notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+          </div>
+        </details>
         {preset && (
           <div className="flex items-center gap-2 md:col-span-3">
             <Badge variant="default"><Sparkles className="size-3" /> Preset attivo: {preset.name}</Badge>
@@ -377,8 +418,9 @@ function RecipeTable({
       { id: "sugars", header: "Zuccheri", cell: ({ row }) => <CellMetric ri={row.original.ri} field="sugars" /> },
       { id: "fat", header: "Grassi", cell: ({ row }) => <CellMetric ri={row.original.ri} field="fat" /> },
       { id: "protein", header: "Prot.", cell: ({ row }) => <CellMetric ri={row.original.ri} field="protein" /> },
-      { id: "pod", header: "POD", cell: ({ row }) => <CellMetric ri={row.original.ri} field="pod" /> },
-      { id: "pac", header: "PAC", cell: ({ row }) => <CellMetric ri={row.original.ri} field="pac" /> },
+      // podShare/pacShare, non pod/pac grezzi: così la colonna somma al totale in tfoot.
+      { id: "pod", header: "POD", cell: ({ row }) => <CellMetric ri={row.original.ri} field="podShare" /> },
+      { id: "pac", header: "PAC", cell: ({ row }) => <CellMetric ri={row.original.ri} field="pacShare" /> },
       {
         id: "lock",
         header: "Lock",
@@ -475,11 +517,12 @@ function CellMetric({
   field,
 }: {
   ri: Recipe["ingredients"][number];
-  field: "water" | "totalSolids" | "sugars" | "fat" | "protein" | "pod" | "pac";
+  field: "water" | "totalSolids" | "sugars" | "fat" | "protein" | "podShare" | "pacShare";
 }) {
   // I contributi sono mergiati dentro ri dal RowData (campi aggiuntivi).
   const value = (ri as unknown as Record<string, number | undefined>)[field];
-  return <span className="tabular-nums">{value !== undefined ? formatNumberIt(value, field === "pod" || field === "pac" ? 1 : 0) : "—"}</span>;
+  const decimals = field === "podShare" || field === "pacShare" ? 1 : 0;
+  return <span className="tabular-nums">{value !== undefined ? formatNumberIt(value, decimals) : "—"}</span>;
 }
 
 function EditableNumber({
