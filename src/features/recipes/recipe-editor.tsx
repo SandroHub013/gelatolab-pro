@@ -233,8 +233,9 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
   const setBatch = useEditorStore((s) => s.setBatchWeight);
   const setPreparation = useEditorStore((s) => s.setPreparation);
   const setNotes = useEditorStore((s) => s.setNotes);
-  // Aperto di default solo se c'è già del contenuto da mostrare.
   const hasLongText = Boolean(recipe.preparation || recipe.notes);
+  // Aperto di default solo se c'è già del contenuto da mostrare.
+  const [longTextOpen, setLongTextOpen] = useState(() => hasLongText);
 
   return (
     <Card className="mb-4">
@@ -261,7 +262,11 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
         </div>
         {/* Testi lunghi richiusi: due textarea vuote spingevano la tabella di
             composizione — la superficie di lavoro principale — sotto la piega. */}
-        <details className="group md:col-span-3" open={hasLongText}>
+        <details
+          className="group md:col-span-3"
+          open={longTextOpen}
+          onToggle={(e) => setLongTextOpen(e.currentTarget.open)}
+        >
           <summary className="inline-flex cursor-pointer select-none items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">
             <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
             Procedimento e note
