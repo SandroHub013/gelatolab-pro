@@ -3,7 +3,8 @@ import { prisma } from "@/infrastructure/database/client";
 import { toDomainRecipe, toDomainIngredients } from "@/infrastructure/repositories/mappers";
 import { calculateRecipe } from "@/domain/calculations";
 import { evaluateTargets } from "@/domain/constraints";
-import type { CalibrationPreset } from "@/types";
+import type { CalibrationPreset, IngredientCategory, RecipeFamily } from "@/types";
+import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILY_LABELS } from "@/types";
 
 /**
  * Campo CSV sempre quotato (nomi ingrediente/ricetta possono contenere il
@@ -67,7 +68,8 @@ export async function GET(
 
     // Header ricetta
     lines.push(row(["# Ricetta", recipe.name]));
-    lines.push(row(["# Famiglia", recipe.family]));
+    // Etichette leggibili, non gli enum grezzi: il CSV lo apre un gelatiere.
+    lines.push(row(["# Famiglia", RECIPE_FAMILY_LABELS[recipe.family as RecipeFamily] ?? recipe.family]));
     lines.push(row(["# Peso batch (g)", fmtNum(recipe.targetBatchWeight, 0)]));
     lines.push(row(["# Versione", recipe.version]));
     lines.push("");
@@ -85,7 +87,7 @@ export async function GET(
       const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
       lines.push(row([
         ing.name,
-        ing.category,
+        INGREDIENT_CATEGORY_LABELS[ing.category as IngredientCategory] ?? ing.category,
         fmtNum(ri.quantityGrams, 1),
         fmtNum(pct, 1),
         contr ? fmtNum(contr.water, 0) : "0",
