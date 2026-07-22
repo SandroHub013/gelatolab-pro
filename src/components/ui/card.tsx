@@ -5,7 +5,7 @@ function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
     <div
       data-slot="card"
       className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
+        "rounded-2xl border border-border/90 bg-card text-card-foreground shadow-[0_1px_2px_oklch(0.2_0.02_248/0.04),0_8px_24px_oklch(0.2_0.02_248/0.03)]",
         className,
       )}
       {...props}
@@ -13,7 +13,10 @@ function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   );
 }
 
-function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function CardHeader({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       data-slot="card-header"
@@ -23,17 +26,26 @@ function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement
   );
 }
 
-function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+function CardTitle({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
       data-slot="card-title"
-      className={cn("text-base font-semibold leading-tight tracking-tight", className)}
+      className={cn(
+        "text-base font-semibold leading-tight tracking-tight",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+function CardDescription({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
       data-slot="card-description"
@@ -43,11 +55,23 @@ function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParag
   );
 }
 
-function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div data-slot="card-content" className={cn("p-4 pt-0", className)} {...props} />;
+function CardContent({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("p-4 pt-0", className)}
+      {...props}
+    />
+  );
 }
 
-function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function CardFooter({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       data-slot="card-footer"
@@ -57,4 +81,11 @@ function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement
   );
 }
 
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter };
+export {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+};
