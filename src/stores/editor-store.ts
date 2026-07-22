@@ -19,7 +19,7 @@ interface EditorState {
   setRecipe: (recipe: Recipe) => void;
 
   setQuantity: (rowId: string, grams: number) => void;
-  addIngredient: (ingredientId: string, grams?: number) => void;
+  addIngredient: (ingredient: Ingredient, grams?: number) => void;
   removeIngredient: (rowId: string) => void;
   toggleLock: (rowId: string) => void;
   toggleMandatory: (rowId: string) => void;
@@ -76,24 +76,34 @@ export const useEditorStore = create<EditorState>()(
           };
         }),
 
-      addIngredient: (ingredientId, grams = 0) =>
+      addIngredient: (ingredient, grams = 0) =>
         set((s) => {
           if (!s.recipe) return {};
-          if (s.recipe.ingredients.some((ri) => ri.ingredientId === ingredientId)) {
+          if (s.recipe.ingredients.some((ri) => ri.ingredientId === ingredient.id)) {
             return {};
           }
           const newRow: RecipeIngredient = {
-            id: `new-${ingredientId}-${Date.now()}`,
-            ingredientId,
+            id: `new-${ingredient.id}-${Date.now()}`,
+            ingredientId: ingredient.id,
             quantityGrams: round(grams, 1),
             isLocked: false,
             isMandatory: false,
           };
+          // L'anagrafica va aggiunta insieme alla riga: `calculateRecipe`
+          // risolve gli ingredienti da questa lista, e senza il record
+          // l'ingrediente appena inserito verrebbe ignorato dai calcoli.
+          const known = s.ingredientIndex.has(ingredient.id);
+          const ingredients = known ? s.ingredients : [...s.ingredients, ingredient];
+          const ingredientIndex = known
+            ? s.ingredientIndex
+            : new Map(s.ingredientIndex).set(ingredient.id, ingredient);
           return {
             recipe: {
               ...s.recipe,
               ingredients: [...s.recipe.ingredients, newRow],
             },
+            ingredients,
+            ingredientIndex,
             dirty: true,
           };
         }),

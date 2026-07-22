@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { calculateRecipe, formatEuro } from "@/domain/calculations";
+import { calculateRecipe, formatEuro, formatNumberIt } from "@/domain/calculations";
 import { evaluateTargets, countOutOfRange } from "@/domain/constraints";
 import {
   findAllRecipes,
@@ -104,12 +104,12 @@ export default async function DashboardPage() {
                   <div className="min-w-0">
                     <div className="truncate font-medium">{r.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {RECIPE_FAMILY_LABELS[r.family]} · {metrics.totalWeightGrams.toFixed(0)}g
+                      {RECIPE_FAMILY_LABELS[r.family]} · {formatNumberIt(metrics.totalWeightGrams, 0)}g
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3 text-xs tabular-nums text-muted-foreground">
-                    <span>POD {metrics.pod.toFixed(1)}</span>
-                    <span>PAC {metrics.pac.toFixed(1)}</span>
+                    <span>POD {formatNumberIt(metrics.pod, 1)}</span>
+                    <span>PAC {formatNumberIt(metrics.pac, 1)}</span>
                     <span>{formatEuro(metrics.costPerKg)}/kg</span>
                   </div>
                 </Link>
