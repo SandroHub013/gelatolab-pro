@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/infrastructure/database/client";
 import { toDomainIngredients } from "@/infrastructure/repositories/mappers";
+import { formatFixedIt } from "@/domain/calculations";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,15 +62,15 @@ export default async function IngredientsPage() {
                       {INGREDIENT_CATEGORY_LABELS[ing.category]}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.waterPercent.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.totalSolidsPercent.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.sugarsPercent.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.fatPercent.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.proteinPercent.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.podCoefficient.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{ing.pacCoefficient.toFixed(0)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.waterPercent, 0)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.totalSolidsPercent, 0)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.sugarsPercent, 1)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.fatPercent, 1)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.proteinPercent, 1)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.podCoefficient, 0)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatFixedIt(ing.pacCoefficient, 0)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {ing.costPerKg ? ing.costPerKg.toFixed(2) : "—"}
+                    {ing.costPerKg ? formatFixedIt(ing.costPerKg, 2) : "—"}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span className={`text-[10px] ${ing.isCustom ? "text-amber-600" : "text-muted-foreground"}`}>

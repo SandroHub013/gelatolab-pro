@@ -46,8 +46,8 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
         role="meter"
         aria-label={`${evaluation.label}: ${formatVal(value, evaluation.unit)} — ${statusConfig.label}`}
         aria-valuenow={value}
-        aria-valuemin={range.min}
-        aria-valuemax={range.max}
+        aria-valuemin={lo}
+        aria-valuemax={hi}
         aria-valuetext={`${formatVal(value, evaluation.unit)} — ${statusConfig.label}`}
       >
         {/* Track */}
