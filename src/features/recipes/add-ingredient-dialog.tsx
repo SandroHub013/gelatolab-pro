@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { Ingredient } from "@/types";
 import { INGREDIENT_CATEGORY_LABELS } from "@/types";
+import { formatFixedIt } from "@/domain/calculations";
 import { Input } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ export function AddIngredientDialog({
 }: {
   allIngredients: Ingredient[];
   usedIds: Set<string>;
-  onAdd: (ingredientId: string, grams: number) => void;
+  onAdd: (ingredient: Ingredient, grams: number) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -79,7 +80,7 @@ export function AddIngredientDialog({
                   <td className="px-3 py-1.5">
                     <div className="font-medium">{ing.name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {INGREDIENT_CATEGORY_LABELS[ing.category]} · POD {ing.podCoefficient.toFixed(0)} / PAC {ing.pacCoefficient.toFixed(0)}
+                      {INGREDIENT_CATEGORY_LABELS[ing.category]} · POD {formatFixedIt(ing.podCoefficient, 0)} / PAC {formatFixedIt(ing.pacCoefficient, 0)}
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right">
@@ -89,7 +90,7 @@ export function AddIngredientDialog({
                       <Button
                         size="xs"
                         onClick={() => {
-                          onAdd(ing.id, 0);
+                          onAdd(ing, 0);
                           onClose();
                         }}
                       >

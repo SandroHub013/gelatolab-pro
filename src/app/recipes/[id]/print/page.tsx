@@ -113,10 +113,10 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
                       {contr ? formatNumberIt(contr.fat, 0) : "—"}
                     </td>
                     <td className="px-2 py-1 text-right tabular-nums">
-                      {contr ? formatNumberIt(contr.pod, 1) : "—"}
+                      {contr ? formatNumberIt(contr.podShare, 1) : "—"}
                     </td>
                     <td className="px-2 py-1 text-right tabular-nums">
-                      {contr ? formatNumberIt(contr.pac, 1) : "—"}
+                      {contr ? formatNumberIt(contr.pacShare, 1) : "—"}
                     </td>
                     <td className="px-2 py-1 text-right tabular-nums">
                       {contr ? formatEuro(contr.cost) : "—"}

@@ -3,7 +3,8 @@ import { prisma } from "@/infrastructure/database/client";
 import { toDomainRecipe, toDomainIngredients } from "@/infrastructure/repositories/mappers";
 import { calculateRecipe } from "@/domain/calculations";
 import { evaluateTargets } from "@/domain/constraints";
-import type { CalibrationPreset } from "@/types";
+import type { CalibrationPreset, IngredientCategory, RecipeFamily } from "@/types";
+import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILY_LABELS } from "@/types";
 
 /**
  * Campo CSV sempre quotato (nomi ingrediente/ricetta possono contenere il
@@ -67,7 +68,8 @@ export async function GET(
 
     // Header ricetta
     lines.push(row(["# Ricetta", recipe.name]));
-    lines.push(row(["# Famiglia", recipe.family]));
+    // Etichette leggibili, non gli enum grezzi: il CSV lo apre un gelatiere.
+    lines.push(row(["# Famiglia", RECIPE_FAMILY_LABELS[recipe.family as RecipeFamily] ?? recipe.family]));
     lines.push(row(["# Peso batch (g)", fmtNum(recipe.targetBatchWeight, 0)]));
     lines.push(row(["# Versione", recipe.version]));
     lines.push("");
@@ -85,7 +87,7 @@ export async function GET(
       const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
       lines.push(row([
         ing.name,
-        ing.category,
+        INGREDIENT_CATEGORY_LABELS[ing.category as IngredientCategory] ?? ing.category,
         fmtNum(ri.quantityGrams, 1),
         fmtNum(pct, 1),
         contr ? fmtNum(contr.water, 0) : "0",
@@ -93,8 +95,8 @@ export async function GET(
         contr ? fmtNum(contr.sugars, 0) : "0",
         contr ? fmtNum(contr.fat, 0) : "0",
         contr ? fmtNum(contr.protein, 0) : "0",
-        contr ? fmtNum(contr.pod, 1) : "0",
-        contr ? fmtNum(contr.pac, 1) : "0",
+        contr ? fmtNum(contr.podShare, 1) : "0",
+        contr ? fmtNum(contr.pacShare, 1) : "0",
         contr ? fmtNum(contr.cost, 4) : "0",
       ]));
     }
@@ -169,8 +171,8 @@ export async function GET(
         sugars: contr?.sugars ?? 0,
         fat: contr?.fat ?? 0,
         protein: contr?.protein ?? 0,
-        pod: contr?.pod ?? 0,
-        pac: contr?.pac ?? 0,
+        pod: contr?.podShare ?? 0,
+        pac: contr?.pacShare ?? 0,
         cost: contr?.cost ?? 0,
       };
     }),

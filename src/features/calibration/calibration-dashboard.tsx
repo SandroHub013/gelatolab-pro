@@ -11,12 +11,12 @@ import type {
   Ingredient, Recipe, RecipeMetrics,
 } from "@/types";
 import { SOLVER_VARIANT_LABELS } from "@/types";
-import { calculateRecipe, compareRecipes, formatEuro, formatNumberIt } from "@/domain/calculations";
+import { calculateRecipe, compareRecipes, formatEuro, formatFixedIt, formatNumberIt } from "@/domain/calculations";
 import { evaluateTargets, countOutOfRange } from "@/domain/constraints";
 import { runCalibration } from "@/app/actions/solver";
 import { applySolutionAndSnapshot } from "@/app/actions/recipes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/form-controls";
 import { Badge } from "@/components/ui/badge";
 import { RangeBar } from "./range-bar";
@@ -101,9 +101,9 @@ export function CalibrationDashboard({
           <h1 className="text-xl font-bold">Calibrazione — {recipe.name}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button render={<Link href={`/recipes/${recipe.id}/comparison`} />} variant="outline" size="sm">
+          <Link href={`/recipes/${recipe.id}/comparison`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             <GitCompareArrows className="size-4" /> Confronto
-          </Button>
+          </Link>
         </div>
       </div>
 
@@ -233,7 +233,7 @@ function SolutionCard({
     () => compareRecipes(originalRecipe, solution.recipe, ingredients, ingredients),
     [originalRecipe, solution.recipe, ingredients],
   );
-  const totalDelta = Math.abs(diff.totalWeightDelta);
+  const totalDelta = diff.totalWeightDelta;
   const topChanges = diff.ingredients
     .filter((d) => Math.abs(d.delta) >= 0.5)
     .slice(0, 4);
@@ -246,7 +246,9 @@ function SolutionCard({
         <CardDescription className="text-xs">Δ costo {diff.costDelta >= 0 ? "+" : ""}{formatEuro(diff.costDelta)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-2 text-sm">
-        <div className="grid grid-cols-2 gap-1 text-xs">
+        {/* gap-x ampio: senza separazione le due colonne si leggono come una
+            sola riga e l'etichetta della seconda sembra appartenere alla prima. */}
+        <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs">
           <Metric label="POD" a={originalMetrics.pod} b={solution.metrics.pod} />
           <Metric label="PAC" a={originalMetrics.pac} b={solution.metrics.pac} />
           <Metric label="Solidi %" a={pct(originalMetrics.totalSolids, originalMetrics)} b={pct(solution.metrics.totalSolids, solution.metrics)} />
@@ -273,9 +275,20 @@ function SolutionCard({
           )}
         </div>
         {solution.activeConstraints.length > 0 && (
-          <div className="text-[11px] text-muted-foreground">Vincoli attivi: {solution.activeConstraints.join(", ")}</div>
+          <details className="text-[11px] text-muted-foreground">
+            <summary className="cursor-pointer select-none hover:text-foreground">
+              Vincoli attivi ({solution.activeConstraints.length})
+            </summary>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {solution.activeConstraints.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </details>
         )}
-        <div className="text-[11px] text-muted-foreground">Δ peso totale: {totalDelta.toFixed(1)}g</div>
+        <div className="text-[11px] text-muted-foreground">
+          Δ peso totale: {totalDelta > 0 ? "+" : ""}{formatFixedIt(totalDelta, 1)} g
+        </div>
         <Button onClick={onApply} disabled={disabled} size="sm" className="mt-auto">
           <Check className="size-4" /> Applica e salva versione
         </Button>
@@ -285,14 +298,18 @@ function SolutionCard({
 }
 
 function Metric({ label, a, b }: { label: string; a: number; b: number }) {
-  const delta = b - a;
+  // Il delta si calcola sui valori arrotondati come vengono mostrati, altrimenti
+  // la riga si contraddice da sola (es. "18,4 → 18,1 (-0,4)").
+  const shownA = round(a, 1);
+  const shownB = round(b, 1);
+  const delta = round(shownB - shownA, 1);
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
       <span className="tabular-nums">
-        {formatNumberIt(a, 1)} → {formatNumberIt(b, 1)}
-        <span className={delta > 0.05 ? "text-amber-600" : delta < -0.05 ? "text-sky-600" : "text-emerald-600"}>
-          {" "}({delta > 0 ? "+" : ""}{formatNumberIt(delta, 1)})
+        {formatFixedIt(shownA, 1)} → {formatFixedIt(shownB, 1)}
+        <span className={delta > 0 ? "text-amber-600" : delta < 0 ? "text-sky-600" : "text-emerald-600"}>
+          {" "}({delta > 0 ? "+" : ""}{formatFixedIt(delta, 1)})
         </span>
       </span>
     </div>
@@ -361,6 +378,7 @@ function CompositionCharts({ metrics }: { metrics: RecipeMetrics }) {
   );
 }
 
+/** Arrotonda con default a 1 decimale (etichette grafici e confronti). */
 function round(v: number, d = 1): number {
   const f = 10 ** d;
   return Math.round((v + Number.EPSILON) * f) / f;
