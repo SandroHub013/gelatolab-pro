@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint, types, tests and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` and not `npm install` would be the stricter choice, but
+      # the lockfile is maintained from Windows and npm prunes the
+      # linux-only @emnapi packages from it there. The result is a lock
+      # that `npm ci` rejects on this runner and that no regeneration
+      # from the dev machine can fix. `npm install` resolves what the
+      # platform actually needs.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests
+        run: npx vitest run --coverage
+
+      - name: Build
+        run: npm run build
+        env:
+          # `next build` runs the route collector, which imports the
+          # Prisma client. A syntactically valid URL is enough — nothing
+          # connects at build time.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/build
+          SKIP_ENV_VALIDATION: "1"
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Reports the advisory backlog without blocking every other PR on
+      # it. Tighten to a failing check once the backlog is clear.
+      - name: Audit
+        run: npm audit --audit-level=high || true
