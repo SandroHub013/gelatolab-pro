@@ -57,6 +57,16 @@ No credentials are tracked. The only environment variables read anywhere
 in `src/` are `DATABASE_URL` and `NODE_ENV`. `.env` files are ignored by
 git.
 
+## Automated scanning
+
+CI runs lint, types, tests and a `npm audit` report on every push and
+pull request.
+
+There is no CodeQL workflow here. Code scanning on a private repository
+requires GitHub Advanced Security, which this account does not have, so
+the analysis would run and then fail at upload. Add the workflow back if
+this repository is ever made public, or if GHAS is enabled.
+
 ## Supported versions
 
 The `main` branch is the only supported version.
