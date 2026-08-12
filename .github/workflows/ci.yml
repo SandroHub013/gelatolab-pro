@@ -26,8 +26,14 @@ jobs:
           node-version: 20
           cache: npm
 
+      # `npm ci` and not `npm install` would be the stricter choice, but
+      # the lockfile is maintained from Windows and npm prunes the
+      # linux-only @emnapi packages from it there. The result is a lock
+      # that `npm ci` rejects on this runner and that no regeneration
+      # from the dev machine can fix. `npm install` resolves what the
+      # platform actually needs.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Generate Prisma client
         run: npx prisma generate
