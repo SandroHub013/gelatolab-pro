@@ -5,20 +5,7 @@ import { calculateRecipe } from "@/domain/calculations";
 import { evaluateTargets } from "@/domain/constraints";
 import type { CalibrationPreset, IngredientCategory, RecipeFamily } from "@/types";
 import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILY_LABELS } from "@/types";
-
-/**
- * Campo CSV sempre quotato (nomi ingrediente/ricetta possono contenere il
- * separatore, virgolette o a capo) con neutralizzazione delle formule per i
- * fogli di calcolo (=, +, -, @).
- */
-function csvField(value: string | number): string {
-  const raw = String(value);
-  // I numeri negativi restano numeri: solo il testo che inizia con un
-  // carattere di formula viene prefissato.
-  const isNumeric = /^-?\d+([.,]\d+)?$/.test(raw);
-  const safe = !isNumeric && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+import { csvField, isExportFormat, safeFilename } from "./format";
 
 /**
  * Esporta una ricetta in JSON o CSV.
@@ -31,6 +18,13 @@ export async function GET(
   const { id } = await params;
   const format = request.nextUrl.searchParams.get("format") ?? "json";
   const locale = request.nextUrl.searchParams.get("locale") ?? "en";
+
+  if (!isExportFormat(format)) {
+    return NextResponse.json(
+      { error: "Formato non supportato: usa json o csv" },
+      { status: 400 },
+    );
+  }
 
   const recipe = await prisma.recipe.findUnique({
     where: { id },
@@ -139,7 +133,7 @@ export async function GET(
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${recipe.slug}.csv"`,
+        "Content-Disposition": `attachment; filename="${safeFilename(recipe.slug, "ricetta")}.csv"`,
       },
     });
   }
@@ -225,7 +219,7 @@ export async function GET(
 
   return NextResponse.json(exportData, {
     headers: {
-      "Content-Disposition": `attachment; filename="${recipe.slug}.json"`,
+      "Content-Disposition": `attachment; filename="${safeFilename(recipe.slug, "ricetta")}.json"`,
     },
   });
 }
