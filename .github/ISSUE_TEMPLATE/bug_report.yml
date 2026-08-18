@@ -1,0 +1,57 @@
+name: Segnalazione bug
+description: Qualcosa non si comporta come dovrebbe
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        L'etichetta `bug` è già applicata. Aggiungi tu l'area se la conosci
+        (`area: domain`, `area: ui`, `area: api`, `area: database`): se non
+        la aggiungi, ci pensa chi prende in carico la segnalazione.
+
+  - type: textarea
+    id: cosa-succede
+    attributes:
+      label: Cosa succede
+      description: Il comportamento osservato, non la causa che sospetti.
+      placeholder: |
+        Il POD della ricetta resta a 0 dopo aver aggiunto lo zucchero invertito.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cosa-dovrebbe-succedere
+    attributes:
+      label: Cosa dovrebbe succedere
+    validations:
+      required: true
+
+  - type: textarea
+    id: riproduzione
+    attributes:
+      label: Come riprodurlo
+      description: >
+        I passi minimi. Se riguarda un calcolo, gli ingredienti e le
+        quantità esatte valgono più di una descrizione a parole.
+      placeholder: |
+        1. Nuova ricetta, famiglia "crema"
+        2. Aggiungi 1000 g di latte intero e 120 g di zucchero invertito
+        3. Guarda il POD nella barra delle metriche
+    validations:
+      required: true
+
+  - type: input
+    id: versione
+    attributes:
+      label: Commit o versione
+      description: L'output di `git rev-parse --short HEAD`.
+    validations:
+      required: false
+
+  - type: textarea
+    id: contesto
+    attributes:
+      label: Log, screenshot, altro
+      description: Incolla qui l'errore esatto se ce n'è uno.
+    validations:
+      required: false

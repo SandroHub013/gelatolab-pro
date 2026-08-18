@@ -55,6 +55,37 @@ src/app/api/.../export/      escaping CSV e nomi file
 Ogni comportamento nuovo vuole un test. Ogni bug fix vuole un test che
 fallisce prima del fix.
 
+## Etichette
+
+Ogni issue e ogni pull request ne hanno almeno una. Serve a rendere
+navigabile lo storico: fra sei mesi la domanda è "cosa è cambiato nel
+solver?", non "cosa è successo a marzo".
+
+**Le aree le mette il workflow Labeler**, deducendole dai file toccati
+(`.github/labeler.yml`):
+
+| Etichetta | Cosa copre |
+| --- | --- |
+| `area: domain` | `src/domain/` — calcoli, solver, calibrazione |
+| `area: ui` | `src/components/`, `src/features/`, pagine e `globals.css` |
+| `area: api` | `src/app/api/`, `src/app/actions/` |
+| `area: database` | `prisma/`, `src/infrastructure/` |
+| `area: ci` | `.github/` |
+| `documentation` | `*.md`, `docs/` |
+| `test` | file `*.test.ts(x)` e `tests/` |
+| `dependencies` | `package.json`, `package-lock.json` |
+
+`sync-labels` è attivo: se una revisione toglie tutti i file di un'area,
+l'etichetta sparisce da sola. Non aggiungerle a mano.
+
+**Il tipo lo scegli tu.** `bug` ed `enhancement` arrivano preimpostati dai
+template delle issue. Sulle pull request vanno messi a mano, insieme a
+quelli che i path non possono dedurre: `security`, `a11y`, `performance`,
+`refactor`.
+
+Se non hai il permesso di applicare un'etichetta, scrivi nel corpo quale
+andrebbe messa invece di lasciar perdere: chi fa il merge la applica.
+
 ## Commit
 
 Conventional commits — `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,

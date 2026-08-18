@@ -1,0 +1,26 @@
+name: Labeler
+
+# `pull_request_target` e non `pull_request`: l'etichettatura richiede il
+# permesso di scrittura sulle pull request, che il token di `pull_request`
+# non ha sulle PR provenienti da fork. Il workflow non fa checkout del
+# codice della PR, quindi non esegue nulla di non fidato.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: labeler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: applica le etichette di area
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v6
+        with:
+          sync-labels: true
