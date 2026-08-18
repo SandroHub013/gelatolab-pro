@@ -5,7 +5,7 @@ import { CalibrationDashboard } from "@/features/calibration/calibration-dashboa
 
 export const dynamic = "force-dynamic";
 
-export default async function CalibrationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CalibrationPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({
     where: { id },

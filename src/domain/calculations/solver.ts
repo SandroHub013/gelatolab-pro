@@ -101,15 +101,8 @@ function resolveWeights(
 ): { sim: number; target: number; cost: number } {
   const base = VARIANT_WEIGHTS[variant];
   const ow: ObjectiveWeights = preset.objectiveWeights ?? {};
-  // Modulazione dai pesi del preset (sweetness→pod, softness→pac, ...).
-  const m = {
-    pod: ow.sweetness ?? 1,
-    pac: ow.softness ?? 1,
-    totalSolids: ow.body ?? 1,
-    fat: ow.creaminess ?? 1,
-    stabilizers: ow.stability ?? 1,
-  };
-  void m; // i pesi per-target sono applicati in buildSolverModel.
+  // La modulazione per-target dai pesi del preset (sweetness -> pod,
+  // softness -> pac, ...) è applicata in buildSolverModel, non qui.
   if (variant === "minimal") {
     return { sim: base.sim, target: base.target, cost: base.cost };
   }
@@ -237,7 +230,7 @@ export function buildSolverModel(
       return { key, desired, coeffs, weight, scale };
     })
     .filter(
-      (t): t is NonNullable<typeof t> => t !== null && t.coeffs.some((c) => c !== 0),
+      (t): t is NonNullable<typeof t> => t?.coeffs.some((c) => c !== 0) ?? false,
     );
 
   return { rows, batch, targets, weights };
@@ -306,7 +299,8 @@ export function modelToLp(model: SolverModel): string {
 
   lines.push("Subject To");
   // Batch weight
-  lines.push(` batch: ${rows.map((_, i) => `x${i}`).join(" + ")} = ${batch}`);
+  const batchTerms = rows.map((_, i) => `x${i}`).join(" + ");
+  lines.push(` batch: ${batchTerms} = ${batch}`);
 
   // Similarity constraints (solo non bloccati)
   rows.forEach((r, i) => {
@@ -601,7 +595,7 @@ export async function solveCalibration(
 
   return {
     feasible: true,
-    solutions: solutions.sort((a, b) => a.variant.localeCompare(b.variant)),
+    solutions: [...solutions].sort((a, b) => a.variant.localeCompare(b.variant)),
     elapsedMs: Date.now() - start,
   };
 }

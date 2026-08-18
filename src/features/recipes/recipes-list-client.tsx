@@ -32,11 +32,11 @@ export function RecipesListClient({
   recipes,
   families,
   familyLabels,
-}: {
+}: Readonly<{
   recipes: RecipeListRow[];
   families: readonly RecipeFamily[];
   familyLabels: Record<RecipeFamily, string>;
-}) {
+}>) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState<string>("");
@@ -234,12 +234,12 @@ function SortButton({
   active,
   dir,
   onClick,
-}: {
+}: Readonly<{
   label: string;
   active: boolean;
   dir: "asc" | "desc";
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       onClick={onClick}

@@ -5,7 +5,7 @@ import { saveSnapshot } from "@/app/actions/recipes";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
 
-export function SaveSnapshotButton({ recipeId }: { recipeId: string }) {
+export function SaveSnapshotButton({ recipeId }: Readonly<{ recipeId: string }>) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
@@ -19,10 +19,14 @@ export function SaveSnapshotButton({ recipeId }: { recipeId: string }) {
     });
   }
 
+  let label = "Salva versione";
+  if (done) label = "Salvato ✓";
+  else if (pending) label = "Salvataggio…";
+
   return (
     <Button onClick={handleSave} disabled={pending} size="sm">
       <Camera className="size-4" />
-      {done ? "Salvato ✓" : pending ? "Salvataggio…" : "Salva versione"}
+      {label}
     </Button>
   );
 }

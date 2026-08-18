@@ -7,11 +7,11 @@ function Dialog({
   open,
   onOpenChange,
   children,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       {children}
@@ -19,7 +19,7 @@ function Dialog({
   );
 }
 
-function DialogTrigger({ children }: { children: React.ReactNode }) {
+function DialogTrigger({ children }: Readonly<{ children: React.ReactNode }>) {
   return <DialogPrimitive.Trigger render={children as React.ReactElement} />;
 }
 
@@ -28,12 +28,12 @@ function DialogContent({
   children,
   title,
   description,
-}: {
+}: Readonly<{
   className?: string;
   children: React.ReactNode;
   title?: string;
   description?: string;
-}) {
+}>) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />

@@ -10,14 +10,14 @@ function Checkbox({
   disabled,
   "aria-label": ariaLabel,
   id,
-}: {
+}: Readonly<{
   className?: string;
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
   id?: string;
   "aria-label"?: string;
-}) {
+}>) {
   return (
     <CheckboxPrimitive.Root
       id={id}

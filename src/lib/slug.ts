@@ -9,14 +9,18 @@ interface SlugModel {
  * - minuscolo, senza accenti
  * - spazi → trattini
  * - rimuove caratteri non alfanumerici
+ *
+ * Lo split sui run non alfanumerici sostituisce il vecchio `replace` più trim
+ * ancorato: `/-+$/` costa backtracking super-lineare su input avversariali.
  */
 export function slugify(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join("-");
 }
 
 /**

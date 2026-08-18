@@ -14,13 +14,11 @@ import createHighs, { type Highs } from "highs";
 let highsPromise: Promise<Highs> | null = null;
 
 export async function getHighs(): Promise<Highs> {
-  if (!highsPromise) {
-    highsPromise = createHighs().catch((err) => {
-      // Reset in modo che un eventuale retry riprovi da capo.
-      highsPromise = null;
-      throw err;
-    });
-  }
+  highsPromise ??= createHighs().catch((err) => {
+    // Reset in modo che un eventuale retry riprovi da capo.
+    highsPromise = null;
+    throw err;
+  });
   return highsPromise;
 }
 

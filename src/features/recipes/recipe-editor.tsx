@@ -12,7 +12,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useStore } from "zustand";
 import { calculateRecipe, formatNumberIt, formatEuro, scaleRecipe } from "@/domain/calculations";
 import { replaceRecipeIngredients, updateRecipeMeta } from "@/app/actions/recipes";
-import type { CalibrationPreset, Ingredient, Recipe, RecipeFamily } from "@/types";
+import type { CalibrationPreset, Ingredient, Recipe, RecipeFamily, RecipeMetrics } from "@/types";
 import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILIES, RECIPE_FAMILY_LABELS } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -32,12 +32,12 @@ export function RecipeEditor({
   usedIngredients,
   allIngredients,
   preset,
-}: {
+}: Readonly<{
   initialRecipe: Recipe;
   usedIngredients: Ingredient[];
   allIngredients: Ingredient[];
   preset: CalibrationPreset | null;
-}) {
+}>) {
   const hydrated = useEditorStore((s) => s.hydrated);
   const hydrate = useEditorStore((s) => s.hydrate);
   const recipe = useEditorStore((s) => s.recipe);
@@ -117,7 +117,7 @@ export function RecipeEditor({
 
         <RecipeMetaForm preset={preset} />
 
-        <MetricsSummary preset={preset} />
+        <MetricsSummary />
 
         <RecipeTable allIngredients={allIngredients} />
 
@@ -159,7 +159,7 @@ export function RecipeEditor({
   );
 }
 
-function EditorToolbar({ recipeId, saveState }: { recipeId: string; saveState: SaveState }) {
+function EditorToolbar({ recipeId, saveState }: Readonly<{ recipeId: string; saveState: SaveState }>) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-1">
@@ -205,27 +205,41 @@ function UndoRedoButtons() {
 
 type SaveState = "idle" | "saving" | "error";
 
-function SaveStatus({ saveState }: { saveState: SaveState }) {
+function SaveStatus({ saveState }: Readonly<{ saveState: SaveState }>) {
   const dirty = useEditorStore((s) => s.dirty);
   if (saveState === "error") {
     return (
-      <Badge variant="destructive" role="status">
-        <AlertTriangle className="size-3" /> Salvataggio non riuscito — modifiche solo locali
-      </Badge>
+      <output className="inline-flex">
+        <Badge variant="destructive">
+          <AlertTriangle className="size-3" /> Salvataggio non riuscito — modifiche solo locali
+        </Badge>
+      </output>
     );
   }
   if (saveState === "saving") {
     return (
-      <Badge variant="secondary" role="status">
-        <Save className="size-3 animate-pulse" /> Salvataggio…
-      </Badge>
+      <output className="inline-flex">
+        <Badge variant="secondary">
+          <Save className="size-3 animate-pulse" /> Salvataggio…
+        </Badge>
+      </output>
     );
   }
-  if (dirty) return <Badge variant="warning" role="status">Modifiche non salvate</Badge>;
-  return <Badge variant="success" role="status">Salvato</Badge>;
+  if (dirty) {
+    return (
+      <output className="inline-flex">
+        <Badge variant="warning">Modifiche non salvate</Badge>
+      </output>
+    );
+  }
+  return (
+    <output className="inline-flex">
+      <Badge variant="success">Salvato</Badge>
+    </output>
+  );
 }
 
-function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
+function RecipeMetaForm({ preset }: Readonly<{ preset: CalibrationPreset | null }>) {
   const recipe = useEditorStore((s) => s.recipe)!;
   const setName = useEditorStore((s) => s.setName);
   const setDescription = useEditorStore((s) => s.setDescription);
@@ -293,7 +307,7 @@ function RecipeMetaForm({ preset }: { preset: CalibrationPreset | null }) {
   );
 }
 
-function MetricsSummary({ preset }: { preset: CalibrationPreset | null }) {
+function MetricsSummary() {
   const recipe = useEditorStore((s) => s.recipe)!;
   const ingredients = useEditorStore((s) => s.ingredients);
   const metrics = useMemo(
@@ -311,7 +325,6 @@ function MetricsSummary({ preset }: { preset: CalibrationPreset | null }) {
     { label: "Equilibrio", value: formatNumberIt(metrics.equilibriumIndex, 0) },
     { label: "Costo/kg", value: formatEuro(metrics.costPerKg) },
   ];
-  void preset;
   return (
     <Card className="mb-4">
       <CardContent className="p-3">
@@ -361,11 +374,89 @@ interface RowData {
   ri: Recipe["ingredients"][number];
 }
 
+/**
+ * Le colonne stanno fuori dal componente: definirle nel corpo di RecipeTable
+ * creerebbe un tipo di componente nuovo a ogni render, e React smonterebbe
+ * l'intero sottoalbero della tabella perdendo focus e stato delle celle.
+ */
+function buildRecipeColumns(metrics: RecipeMetrics): ColumnDef<RowData>[] {
+  return [
+    {
+      accessorKey: "ingredient.name",
+      header: "Ingrediente",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <div>
+            <div className="font-medium">{row.original.ingredient.name}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {INGREDIENT_CATEGORY_LABELS[row.original.ingredient.category]}
+              {row.original.ri.isMandatory && <span className="ml-1 text-amber-600">· obbligatorio</span>}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "grams",
+      header: "Grammi",
+      cell: ({ row }) => (
+        <EditableNumber
+          value={row.original.ri.quantityGrams}
+          onCommit={(v) => useEditorStore.getState().setQuantity(row.original.rowId, v)}
+          aria-label="Grammi"
+        />
+      ),
+    },
+    {
+      id: "percent",
+      header: "%",
+      cell: ({ row }) => {
+        const pct = metrics.ingredientPercents[row.original.rowId] ?? 0;
+        return <span className="tabular-nums">{formatNumberIt(pct, 1)}</span>;
+      },
+    },
+    { id: "water", header: "Acqua", cell: ({ row }) => <CellMetric ri={row.original.ri} field="water" /> },
+    { id: "solids", header: "Solidi", cell: ({ row }) => <CellMetric ri={row.original.ri} field="totalSolids" /> },
+    { id: "sugars", header: "Zuccheri", cell: ({ row }) => <CellMetric ri={row.original.ri} field="sugars" /> },
+    { id: "fat", header: "Grassi", cell: ({ row }) => <CellMetric ri={row.original.ri} field="fat" /> },
+    { id: "protein", header: "Prot.", cell: ({ row }) => <CellMetric ri={row.original.ri} field="protein" /> },
+    // podShare/pacShare, non pod/pac grezzi: così la colonna somma al totale in tfoot.
+    { id: "pod", header: "POD", cell: ({ row }) => <CellMetric ri={row.original.ri} field="podShare" /> },
+    { id: "pac", header: "PAC", cell: ({ row }) => <CellMetric ri={row.original.ri} field="pacShare" /> },
+    {
+      id: "lock",
+      header: "Lock",
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.original.ri.isLocked}
+          onCheckedChange={() => useEditorStore.getState().toggleLock(row.original.rowId)}
+          aria-label="Blocca quantità"
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => useEditorStore.getState().removeIngredient(row.original.rowId)}
+          title="Rimuovi"
+          aria-label="Rimuovi ingrediente"
+        >
+          <Trash2 className="size-3.5 text-destructive" />
+        </Button>
+      ),
+    },
+  ];
+}
+
 function RecipeTable({
   allIngredients,
-}: {
+}: Readonly<{
   allIngredients: Ingredient[];
-}) {
+}>) {
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([]);
   const recipe = useEditorStore((s) => s.recipe)!;
   const ingredients = useEditorStore((s) => s.ingredients);
@@ -377,79 +468,7 @@ function RecipeTable({
     return { rowId: ri.id, ingredient: ing, ri: { ...ri, ...contribution } as RowData["ri"] };
   });
 
-  const columns = useMemo<ColumnDef<RowData>[]>(
-    () => [
-      {
-        accessorKey: "ingredient.name",
-        header: "Ingrediente",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <div>
-              <div className="font-medium">{row.original.ingredient.name}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {INGREDIENT_CATEGORY_LABELS[row.original.ingredient.category]}
-                {row.original.ri.isMandatory && <span className="ml-1 text-amber-600">· obbligatorio</span>}
-              </div>
-            </div>
-          </div>
-        ),
-      },
-      {
-        id: "grams",
-        header: "Grammi",
-        cell: ({ row }) => (
-          <EditableNumber
-            value={row.original.ri.quantityGrams}
-            onCommit={(v) => useEditorStore.getState().setQuantity(row.original.rowId, v)}
-            aria-label="Grammi"
-          />
-        ),
-      },
-      {
-        id: "percent",
-        header: "%",
-        cell: ({ row }) => {
-          const pct = metrics.ingredientPercents[row.original.rowId] ?? 0;
-          return <span className="tabular-nums">{formatNumberIt(pct, 1)}</span>;
-        },
-      },
-      { id: "water", header: "Acqua", cell: ({ row }) => <CellMetric ri={row.original.ri} field="water" /> },
-      { id: "solids", header: "Solidi", cell: ({ row }) => <CellMetric ri={row.original.ri} field="totalSolids" /> },
-      { id: "sugars", header: "Zuccheri", cell: ({ row }) => <CellMetric ri={row.original.ri} field="sugars" /> },
-      { id: "fat", header: "Grassi", cell: ({ row }) => <CellMetric ri={row.original.ri} field="fat" /> },
-      { id: "protein", header: "Prot.", cell: ({ row }) => <CellMetric ri={row.original.ri} field="protein" /> },
-      // podShare/pacShare, non pod/pac grezzi: così la colonna somma al totale in tfoot.
-      { id: "pod", header: "POD", cell: ({ row }) => <CellMetric ri={row.original.ri} field="podShare" /> },
-      { id: "pac", header: "PAC", cell: ({ row }) => <CellMetric ri={row.original.ri} field="pacShare" /> },
-      {
-        id: "lock",
-        header: "Lock",
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.original.ri.isLocked}
-            onCheckedChange={() => useEditorStore.getState().toggleLock(row.original.rowId)}
-            aria-label="Blocca quantità"
-          />
-        ),
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => useEditorStore.getState().removeIngredient(row.original.rowId)}
-            title="Rimuovi"
-            aria-label="Rimuovi ingrediente"
-          >
-            <Trash2 className="size-3.5 text-destructive" />
-          </Button>
-        ),
-      },
-    ],
-    [metrics],
-  );
+  const columns = useMemo(() => buildRecipeColumns(metrics), [metrics]);
 
   const table = useReactTable({
     data,
@@ -515,10 +534,10 @@ function RecipeTable({
 function CellMetric({
   ri,
   field,
-}: {
+}: Readonly<{
   ri: Recipe["ingredients"][number];
   field: "water" | "totalSolids" | "sugars" | "fat" | "protein" | "podShare" | "pacShare";
-}) {
+}>) {
   // I contributi sono mergiati dentro ri dal RowData (campi aggiuntivi).
   const value = (ri as unknown as Record<string, number | undefined>)[field];
   const decimals = field === "podShare" || field === "pacShare" ? 1 : 0;
@@ -529,11 +548,11 @@ function EditableNumber({
   value,
   onCommit,
   "aria-label": ariaLabel,
-}: {
+}: Readonly<{
   value: number;
   onCommit: (v: number) => void;
   "aria-label"?: string;
-}) {
+}>) {
   const [local, setLocal] = useState(String(value));
   const [editing, setEditing] = useState(false);
   // Aggiornamento durante il render (pattern React) quando il valore esterno cambia e non stiamo editando.

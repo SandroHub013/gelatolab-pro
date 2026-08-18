@@ -7,12 +7,8 @@ import {
   toDomainIngredients,
   toDomainRecipe,
 } from "@/infrastructure/repositories/mappers";
-import { slugify, uniqueSlug } from "@/lib/slug";
-import type {
-  Ingredient,
-  Recipe,
-  RecipeIngredientInput,
-} from "@/types";
+import { uniqueSlug } from "@/lib/slug";
+import type { Recipe, RecipeIngredientInput } from "@/types";
 import { recipeIngredientSchema } from "@/domain/validation";
 import type { Prisma } from "@prisma/client";
 
@@ -260,16 +256,18 @@ export async function detectCompositionDrift(recipeId: string): Promise<
   if (!recipe || recipe.snapshots.length === 0) return [];
   const lastSnap = recipe.snapshots[0];
   const drift: Array<{ ingredientId: string; ingredientName: string; field: string; snapshot: number; current: number }> = [];
-  const fields: Array<keyof typeof lastSnap.ingredients[number]> = [
+  // `as const`: le chiavi esistono su entrambi i lati del confronto, così il
+  // lookup è tipato senza asserzioni.
+  const fields = [
     "waterPercent", "totalSolidsPercent", "sugarsPercent", "fatPercent",
     "proteinPercent", "podCoefficient", "pacCoefficient", "costPerKg",
-  ];
+  ] as const;
   for (const ri of recipe.ingredients) {
     const snapIng = lastSnap.ingredients.find((si) => si.ingredientId === ri.ingredientId);
     if (!snapIng) continue;
     for (const f of fields) {
-      const snapVal = snapIng[f] as number | null;
-      const curVal = ri.ingredient[f as keyof typeof ri.ingredient] as number | null;
+      const snapVal = snapIng[f];
+      const curVal = ri.ingredient[f];
       if (snapVal !== null && curVal !== null && Math.abs(snapVal - curVal) > 0.01) {
         drift.push({
           ingredientId: ri.ingredientId,

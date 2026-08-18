@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 function Input({
   className,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: Readonly<React.InputHTMLAttributes<HTMLInputElement>>) {
   return (
     <input
       data-slot="input"
@@ -22,18 +22,23 @@ export { Input };
 
 function Label({
   className,
+  htmlFor,
+  children,
   ...props
-}: React.LabelHTMLAttributes<HTMLLabelElement>) {
+}: Readonly<React.LabelHTMLAttributes<HTMLLabelElement>>) {
   return (
     <label
       data-slot="label"
+      htmlFor={htmlFor}
       className={cn(
         "text-sm font-medium leading-none text-foreground select-none",
         "peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </label>
   );
 }
 
@@ -42,7 +47,7 @@ export { Label };
 function Textarea({
   className,
   ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: Readonly<React.TextareaHTMLAttributes<HTMLTextAreaElement>>) {
   return (
     <textarea
       data-slot="textarea"
@@ -62,7 +67,7 @@ export { Textarea };
 function Select({
   className,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: Readonly<React.SelectHTMLAttributes<HTMLSelectElement>>) {
   return (
     <select
       data-slot="select"
