@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/infrastructure/database/client";
 import { toDomainPreset } from "@/infrastructure/repositories/mappers";
 import { RECIPE_FAMILY_LABELS, TARGET_LABELS } from "@/types";
+import type { CalibrationRule } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,16 @@ import { ArrowLeft, Edit } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function PresetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * Le regole non hanno id: la chiave di lista si deriva dal contenuto, che
+ * per una singola preset è già univoco.
+ */
+function ruleKey(rule: CalibrationRule): string {
+  const bounds = `${rule.range?.min ?? ""}-${rule.range?.max ?? ""}`;
+  return `${rule.type}:${rule.ingredientIds.join(",")}:${rule.ratio ?? ""}:${bounds}`;
+}
+
+export default async function PresetDetailPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const row = await prisma.calibrationPreset.findUnique({ where: { id } });
   if (!row) notFound();
@@ -127,8 +137,8 @@ export default async function PresetDetailPage({ params }: { params: Promise<{ i
               <Separator />
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Regole ({preset.rules.length})</h3>
-                {preset.rules.map((rule, i) => (
-                  <div key={i} className="text-sm text-muted-foreground">
+                {preset.rules.map((rule) => (
+                  <div key={ruleKey(rule)} className="text-sm text-muted-foreground">
                     {rule.type === "ratio"
                       ? `Rapporto tra ${rule.ingredientIds.join(", ")}`
                       : `Somma range: ${rule.range?.min ?? "?"} – ${rule.range?.max ?? "?"}`}

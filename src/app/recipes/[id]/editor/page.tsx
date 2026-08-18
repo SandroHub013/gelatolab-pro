@@ -5,7 +5,7 @@ import { RecipeEditor } from "@/features/recipes/recipe-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditorPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditorPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({
     where: { id },

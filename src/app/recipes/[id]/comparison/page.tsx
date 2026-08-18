@@ -11,7 +11,17 @@ import { ArrowLeft, GitCompareArrows, AlertTriangle, Camera } from "lucide-react
 
 export const dynamic = "force-dynamic";
 
-export default async function ComparisonPage({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * Colore del delta: neutro sotto la soglia di rumore, ambra in crescita,
+ * azzurro in calo. `neutral` resta a carico del chiamante perché la
+ * soglia cambia fra tabella ingredienti e tabella metriche.
+ */
+function deltaTone(delta: number, neutral: boolean): string {
+  if (neutral) return "text-muted-foreground";
+  return delta > 0 ? "text-amber-600" : "text-sky-600";
+}
+
+export default async function ComparisonPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({
     where: { id },
@@ -80,8 +90,8 @@ export default async function ComparisonPage({ params }: { params: Promise<{ id:
                   </tr>
                 </thead>
                 <tbody>
-                  {drift.slice(0, 20).map((d, i) => (
-                    <tr key={i} className="border-t border-amber-200/50 dark:border-amber-900/50">
+                  {drift.slice(0, 20).map((d) => (
+                    <tr key={`${d.ingredientId}-${d.field}`} className="border-t border-amber-200/50 dark:border-amber-900/50">
                       <td className="px-2 py-1">{d.ingredientName}</td>
                       <td className="px-2 py-1 font-mono text-xs">{d.field}</td>
                       <td className="px-2 py-1 text-right tabular-nums">{formatNumberIt(d.snapshot, 2)}</td>
@@ -132,7 +142,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ id:
                         </td>
                         <td className="px-2 py-1 text-right tabular-nums">{formatNumberIt(d.quantityA, 1)}</td>
                         <td className="px-2 py-1 text-right tabular-nums">{formatNumberIt(d.quantityB, 1)}</td>
-                        <td className={`px-2 py-1 text-right tabular-nums ${d.delta > 0.05 ? "text-amber-600" : d.delta < -0.05 ? "text-sky-600" : "text-muted-foreground"}`}>
+                        <td className={`px-2 py-1 text-right tabular-nums ${deltaTone(d.delta, Math.abs(d.delta) <= 0.05)}`}>
                           {d.delta > 0 ? "+" : ""}{formatNumberIt(d.delta, 1)}
                         </td>
                       </tr>
@@ -164,7 +174,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ id:
                       <td className="px-2 py-1">{m.label}</td>
                       <td className="px-2 py-1 text-right tabular-nums">{formatNumberIt(m.valueA, 2)}</td>
                       <td className="px-2 py-1 text-right tabular-nums">{formatNumberIt(m.valueB, 2)}</td>
-                      <td className={`px-2 py-1 text-right tabular-nums ${Math.abs(m.delta) < 0.01 ? "text-muted-foreground" : m.delta > 0 ? "text-amber-600" : "text-sky-600"}`}>
+                      <td className={`px-2 py-1 text-right tabular-nums ${deltaTone(m.delta, Math.abs(m.delta) < 0.01)}`}>
                         {m.delta > 0 ? "+" : ""}{formatNumberIt(m.delta, 2)}
                       </td>
                     </tr>

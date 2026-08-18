@@ -10,7 +10,7 @@ import { PrintButton } from "./print-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function PrintPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrintPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({
     where: { id },
