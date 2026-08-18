@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       # `npm ci` and not `npm install` would be the stricter choice, but
@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       # Reports the advisory backlog without blocking every other PR on
