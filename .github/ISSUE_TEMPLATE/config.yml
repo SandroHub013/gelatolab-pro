@@ -1,0 +1,7 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Vulnerabilità di sicurezza
+    url: https://github.com/SandroHub013/gelatolab-pro/security/advisories/new
+    about: >
+      Non aprire una issue pubblica. Usa un advisory privato: la procedura
+      completa è in SECURITY.md.

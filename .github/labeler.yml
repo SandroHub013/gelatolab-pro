@@ -1,0 +1,52 @@
+# Etichette applicate automaticamente alle pull request in base ai file
+# toccati. Le aree seguono la struttura reale del progetto, non una
+# tassonomia generica: se una cartella si sposta, va aggiornato anche qui.
+
+"area: domain":
+  - changed-files:
+      - any-glob-to-any-file: "src/domain/**"
+
+"area: ui":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/components/**"
+          - "src/features/**"
+          - "src/app/**/page.tsx"
+          - "src/app/**/layout.tsx"
+          - "src/app/globals.css"
+
+"area: api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/app/api/**"
+          - "src/app/actions/**"
+
+"area: database":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "prisma/**"
+          - "src/infrastructure/database/**"
+          - "src/infrastructure/repositories/**"
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "docs/**"
+
+test:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.test.ts"
+          - "**/*.test.tsx"
+          - "tests/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "package-lock.json"

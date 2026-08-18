@@ -6,6 +6,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
     groups:
       # Minor and patch bumps travel together so review effort tracks
       # risk rather than dependency count.
@@ -18,6 +21,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    labels:
+      - dependencies
+      - github_actions
+      - "area: ci"
     groups:
       actions:
         patterns:

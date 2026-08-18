@@ -1,0 +1,37 @@
+name: Proposta
+description: Una funzionalità nuova o un cambiamento di comportamento
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        L'etichetta `enhancement` è già applicata. Aggiungi l'area se la
+        conosci (`area: domain`, `area: ui`, `area: api`, `area: database`).
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Il problema
+      description: >
+        Cosa non riesci a fare oggi. Parti da qui e non dalla soluzione:
+        il problema sopravvive alle proposte che non funzionano.
+      placeholder: |
+        Non riesco a confrontare due calibrazioni della stessa ricetta
+        senza salvarne una e ricaricare la pagina.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Come lo risolveresti
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternative
+    attributes:
+      label: Cosa hai già provato o scartato
+      description: Anche le strade chiuse sono informazione utile.
+    validations:
+      required: false

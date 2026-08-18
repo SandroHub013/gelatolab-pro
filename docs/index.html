@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GelatoLab Pro — Banco di formulazione per gelato artigianale</title>
+<meta name="description" content="Crea, calibra, confronta ed esporta ricette di gelato artigianale. POD, PAC, solidi e costi ricalcolati a ogni modifica, con un solver lineare che propone soluzioni senza decidere al posto tuo.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍨</text></svg>">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="GelatoLab Pro">
+<meta property="og:description" content="Banco di formulazione per gelato artigianale: POD, PAC, solidi e costi visibili e verificabili.">
+<meta property="og:url" content="https://sandrohub013.github.io/gelatolab-pro/">
+<meta property="og:image" content="https://sandrohub013.github.io/gelatolab-pro/screenshots/home-desktop.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* Palette presa da src/app/globals.css: il sito e l'app devono sembrare
+     la stessa cosa, non due prodotti diversi. */
+  :root {
+    --bg: oklch(0.985 0.006 240);
+    --fg: oklch(0.2 0.018 248);
+    --card: oklch(1 0 0);
+    --primary: oklch(0.5 0.16 241);
+    --primary-fg: oklch(0.985 0 0);
+    --muted: oklch(0.96 0.01 240);
+    --muted-fg: oklch(0.52 0.025 245);
+    --border: oklch(0.9 0.012 240);
+    --ok: oklch(0.6 0.14 155);
+    --warn: oklch(0.68 0.15 70);
+    --shadow: 0 1px 2px oklch(0.2 0.02 248 / 0.05), 0 8px 24px oklch(0.2 0.02 248 / 0.05);
+    --radius: 14px;
+    --maxw: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: oklch(0.16 0.012 248);
+      --fg: oklch(0.96 0.004 240);
+      --card: oklch(0.21 0.014 248);
+      --primary: oklch(0.68 0.14 241);
+      --primary-fg: oklch(0.16 0.012 248);
+      --muted: oklch(0.26 0.014 248);
+      --muted-fg: oklch(0.72 0.015 245);
+      --border: oklch(1 0 0 / 12%);
+      --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px oklch(0 0 0 / 0.25);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: 24px; }
+  a { color: var(--primary); }
+
+  /* ---------- header ---------- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in oklab, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav { display: flex; align-items: center; gap: 16px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+  .mark {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: var(--primary); color: var(--primary-fg);
+    display: grid; place-items: center; font-size: 17px;
+  }
+  .nav-links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+  .nav-links a { color: var(--muted-fg); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--fg); }
+  /* .nav-links a vince su .btn per specificita: il colore del bottone va
+     riaffermato qui, altrimenti l'etichetta resta muted-fg sul fondo primary. */
+  .nav-links a.btn { color: var(--primary-fg); }
+  @media (max-width: 640px) { .nav-links a:not(.btn) { display: none; } }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    background: var(--primary); color: var(--primary-fg);
+    border: 1px solid transparent; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn-ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 84px 0 56px; text-align: center; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .09em;
+    color: var(--primary); margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.08;
+    letter-spacing: -0.03em; margin: 0 0 20px; font-weight: 700;
+  }
+  .lede {
+    font-size: clamp(1.02rem, 2vw, 1.2rem); color: var(--muted-fg);
+    max-width: 62ch; margin: 0 auto 32px;
+  }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .shot {
+    margin-top: 52px; border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    overflow: hidden; background: var(--card);
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  /* ---------- metriche ---------- */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; margin: 56px 0;
+  }
+  .stat {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .stat b { display: block; font-size: 1.7rem; letter-spacing: -0.02em; }
+  .stat span { font-size: 13px; color: var(--muted-fg); }
+
+  /* ---------- sezioni ---------- */
+  section { padding: 64px 0; }
+  h2 {
+    font-size: clamp(1.5rem, 3.4vw, 2.1rem); letter-spacing: -0.02em;
+    margin: 0 0 12px; font-weight: 700;
+  }
+  .sub { color: var(--muted-fg); max-width: 64ch; margin: 0 0 36px; }
+
+  .feature {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 44px; align-items: center; margin-bottom: 72px;
+  }
+  .feature:nth-child(even) .feature-copy { order: 2; }
+  @media (max-width: 860px) {
+    .feature { grid-template-columns: 1fr; gap: 24px; }
+    .feature:nth-child(even) .feature-copy { order: 0; }
+  }
+  .feature h3 { font-size: 1.25rem; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .feature p { color: var(--muted-fg); margin: 0 0 14px; }
+  .tag {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--muted); color: var(--muted-fg); margin-right: 6px;
+  }
+
+  .grid-3 {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1.02rem; }
+  .card p { margin: 0; color: var(--muted-fg); font-size: 14px; }
+
+  table.stack { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.stack td { padding: 11px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.stack td:first-child { color: var(--muted-fg); width: 34%; padding-right: 18px; }
+  .scroll-x { overflow-x: auto; }
+
+  pre {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px; overflow-x: auto;
+    font-size: 13px; line-height: 1.7;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .cmt { color: var(--muted-fg); }
+
+  footer {
+    border-top: 1px solid var(--border); padding: 36px 0 48px;
+    color: var(--muted-fg); font-size: 14px;
+  }
+  .foot { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+  .foot a { color: var(--muted-fg); }
+  .foot .sep { margin-left: auto; }
+  .note { font-size: 13px; color: var(--muted-fg); margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand"><span class="mark">🍨</span> GelatoLab Pro</div>
+    <nav class="nav-links">
+      <a href="#cosa-fa">Cosa fa</a>
+      <a href="#schermate">Schermate</a>
+      <a href="#stack">Stack</a>
+      <a href="#avvio">Avvio</a>
+      <a class="btn" href="https://github.com/SandroHub013/gelatolab-pro">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">Formulazione · Calibrazione · Versionamento</span>
+    <h1>Il bilanciamento del gelato,<br>reso verificabile.</h1>
+    <p class="lede">
+      Più zucchero abbassa il punto di congelamento ma alza il POD. Più grassi danno
+      struttura ma tolgono spazio ai solidi magri. GelatoLab Pro non nasconde quel
+      conflitto dietro un risultato: te lo mostra numero per numero, ingrediente per
+      ingrediente.
+    </p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/SandroHub013/gelatolab-pro">Codice su GitHub</a>
+      <a class="btn btn-ghost" href="#avvio">Avvialo in locale</a>
+    </div>
+    <div class="shot">
+      <img src="screenshots/home-desktop.png" alt="Dashboard di GelatoLab Pro con ricette recenti e ricette fuori calibrazione" loading="eager" width="1440" height="900">
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>16</b><span>metriche per ricetta</span></div>
+    <div class="stat"><b>12</b><span>preset di calibrazione</span></div>
+    <div class="stat"><b>3</b><span>soluzioni dal solver</span></div>
+    <div class="stat"><b>57</b><span>test automatici</span></div>
+  </div>
+
+  <section id="cosa-fa">
+    <h2>Cosa fa</h2>
+    <p class="sub">
+      Quattro cose, tenute insieme da un principio: nessun numero senza la sua provenienza.
+    </p>
+
+    <div class="feature">
+      <div class="feature-copy">
+        <h3>Calcolo immediato, contributo per contributo</h3>
+        <p>
+          POD, PAC, solidi, acqua, zuccheri per tipo, grassi, proteine, MSNF, fibre,
+          minerali, kcal e costo. Ricalcolati a ogni modifica, con la riga di ogni
+          ingrediente che mostra quanto porta a ciascun totale.
+        </p>
+        <p>
+          Se la somma degli ingredienti non corrisponde al peso batch, l'app lo dice
+          invece di normalizzare in silenzio.
+        </p>
+        <span class="tag">Undo / redo</span><span class="tag">Autosave</span><span class="tag">Scala a batch</span>
+      </div>
+      <div class="shot">
+        <img src="screenshots/editor-desktop.png" alt="Editor ricetta con tabella composizione e metriche aggregate" loading="lazy" width="1440" height="900">
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-copy">
+        <h3>Calibrazione contro target dichiarati</h3>
+        <p>
+          Dodici preset di sistema definiscono i range per famiglia. Ogni parametro
+          mostra il valore attuale, il range valido, l'ideale e di quanto sei fuori —
+          non un semaforo verde o rosso.
+        </p>
+        <p>
+          Il solver lineare HiGHS propone tre soluzioni per rientrare nei target senza
+          cambiare gli ingredienti. Se i vincoli sono incompatibili fallisce dicendo
+          quali, invece di restituire un compromesso inventato.
+        </p>
+        <span class="tag">HiGHS WASM</span><span class="tag">Deterministico</span><span class="tag">Nessun LLM</span>
+      </div>
+      <div class="shot">
+        <img src="screenshots/calibration-desktop.png" alt="Pagina di calibrazione con barre di range e composizione" loading="lazy" width="1440" height="900">
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-copy">
+        <h3>Versioni immutabili e confronto</h3>
+        <p>
+          Ogni versione salvata è uno snapshot che non cambia più. Il confronto mostra
+          il diff fra lo snapshot e la ricetta attuale, e segnala il drift di
+          composizione quando i dati di un ingrediente sono cambiati sotto i piedi.
+        </p>
+        <span class="tag">Snapshot</span><span class="tag">Drift detection</span><span class="tag">Export JSON / CSV</span>
+      </div>
+      <div class="shot">
+        <img src="screenshots/comparison-desktop.png" alt="Confronto fra versione salvata e ricetta attuale" loading="lazy" width="1440" height="900">
+      </div>
+    </div>
+  </section>
+
+  <section id="schermate">
+    <h2>Le altre schermate</h2>
+    <p class="sub">Ricettario, database ingredienti e preset di calibrazione.</p>
+    <div class="grid-3">
+      <div class="shot"><img src="screenshots/recipes-desktop.png" alt="Ricettario" loading="lazy" width="1440" height="900"></div>
+      <div class="shot"><img src="screenshots/ingredients-desktop.png" alt="Database ingredienti" loading="lazy" width="1440" height="900"></div>
+      <div class="shot"><img src="screenshots/presets-desktop.png" alt="Preset di calibrazione" loading="lazy" width="1440" height="900"></div>
+    </div>
+    <p class="note">Schermate reali, catturate dall'applicazione in esecuzione con il seed di sviluppo.</p>
+  </section>
+
+  <section id="stack">
+    <h2>Com'è fatto</h2>
+    <p class="sub">
+      Il vincolo portante è che il dominio resta puro: <code>src/domain/</code> non
+      importa Prisma, né Next, né React. È dove vivono i calcoli, ed è per questo che
+      è la parte più densa di test — si verifica chiamando funzioni, senza database
+      né rendering.
+    </p>
+    <div class="grid-3" style="margin-bottom:28px">
+      <div class="card">
+        <h3>Dominio puro</h3>
+        <p>Calcoli, solver e valutazione dei target vivono isolati da framework e database. Testabili chiamando funzioni.</p>
+      </div>
+      <div class="card">
+        <h3>Onestà sui numeri</h3>
+        <p>Le euristiche sono dichiarate tali. I target impossibili falliscono con un messaggio, non con una stima plausibile.</p>
+      </div>
+      <div class="card">
+        <h3>Quattro controlli in CI</h3>
+        <p>Lint, typecheck, test con coverage e build di produzione, su ogni push e ogni pull request.</p>
+      </div>
+    </div>
+    <div class="scroll-x">
+      <table class="stack">
+        <tr><td>Frontend</td><td>Next.js 16 App Router · React 19 · TypeScript strict</td></tr>
+        <tr><td>Stile</td><td>Tailwind CSS 4 · Base UI</td></tr>
+        <tr><td>Stato</td><td>Zustand + zundo (undo/redo)</td></tr>
+        <tr><td>Form</td><td>React Hook Form · Zod, schemi condivisi client e server</td></tr>
+        <tr><td>Tabelle e grafici</td><td>TanStack Table v9 · Recharts</td></tr>
+        <tr><td>Backend</td><td>Server Action · Prisma 7 · PostgreSQL 16</td></tr>
+        <tr><td>Solver</td><td>HiGHS via WebAssembly, programmazione lineare</td></tr>
+        <tr><td>Test</td><td>Vitest · Playwright</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section id="avvio">
+    <h2>Avvialo in locale</h2>
+    <p class="sub">Serve Node 24 e Docker per PostgreSQL. Il seed carica 33 ingredienti, 12 preset e 15 ricette dimostrative.</p>
+<pre><span class="cmt"># 1. PostgreSQL</span>
+docker compose up -d
+
+<span class="cmt"># 2. Ambiente</span>
+cp .env.example .env
+
+<span class="cmt"># 3. Dipendenze e client Prisma</span>
+npm install
+npx prisma generate
+
+<span class="cmt"># 4. Migrazioni e seed</span>
+npm run db:setup
+
+<span class="cmt"># 5. Via</span>
+npm run dev</pre>
+    <p class="note">
+      Su Windows, se <code>prisma migrate</code> risponde <code>P1001</code>, usa
+      <code>127.0.0.1</code> invece di <code>localhost</code> nel
+      <code>DATABASE_URL</code>: <code>localhost</code> risolve a IPv6 e il mapping
+      della porta del container non risponde su quell'indirizzo.
+    </p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap foot">
+    <span>GelatoLab Pro</span>
+    <a href="https://github.com/SandroHub013/gelatolab-pro">Repository</a>
+    <a href="https://github.com/SandroHub013/gelatolab-pro/blob/main/CONTRIBUTING.md">Contribuire</a>
+    <a href="https://github.com/SandroHub013/gelatolab-pro/issues">Segnalazioni</a>
+    <span class="sep">Dati ingredienti indicativi e modificabili.</span>
+  </div>
+</footer>
+
+</body>
+</html>
