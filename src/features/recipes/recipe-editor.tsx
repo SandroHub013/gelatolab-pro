@@ -2,11 +2,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
+  useTable,
+  tableFeatures,
+  rowSortingFeature,
+  createSortedRowModel,
+  sortFns,
   flexRender,
   type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
 import { useEditorStore } from "@/stores/editor-store";
 import { useStore } from "zustand";
@@ -368,6 +371,19 @@ function ScaleToBatchButton() {
   );
 }
 
+/**
+ * In v9 le funzionalità della tabella sono esplicite e tree-shakeable: qui
+ * serve solo l'ordinamento per riga. Il core row model non si dichiara più,
+ * viene creato sempre.
+ */
+const recipeTableFeatures = tableFeatures({
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns,
+});
+
+type RecipeTableFeatures = typeof recipeTableFeatures;
+
 interface RowData {
   rowId: string;
   ingredient: Ingredient;
@@ -379,7 +395,9 @@ interface RowData {
  * creerebbe un tipo di componente nuovo a ogni render, e React smonterebbe
  * l'intero sottoalbero della tabella perdendo focus e stato delle celle.
  */
-function buildRecipeColumns(metrics: RecipeMetrics): ColumnDef<RowData>[] {
+function buildRecipeColumns(
+  metrics: RecipeMetrics,
+): ColumnDef<RecipeTableFeatures, RowData>[] {
   return [
     {
       accessorKey: "ingredient.name",
@@ -457,7 +475,7 @@ function RecipeTable({
 }: Readonly<{
   allIngredients: Ingredient[];
 }>) {
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const recipe = useEditorStore((s) => s.recipe)!;
   const ingredients = useEditorStore((s) => s.ingredients);
   const metrics = useMemo(() => calculateRecipe(recipe, ingredients), [recipe, ingredients]);
@@ -470,13 +488,12 @@ function RecipeTable({
 
   const columns = useMemo(() => buildRecipeColumns(metrics), [metrics]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: recipeTableFeatures,
     data,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
@@ -502,7 +519,7 @@ function RecipeTable({
           <tbody>
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
-                {row.getVisibleCells().map((cell) => (
+                {row.getAllCells().map((cell) => (
                   <td key={cell.id} className="whitespace-nowrap px-2 py-1 first:pl-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
