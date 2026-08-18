@@ -3,143 +3,144 @@ import { prisma } from "@/infrastructure/database/client";
 import { toDomainRecipe, toDomainIngredients } from "@/infrastructure/repositories/mappers";
 import { calculateRecipe } from "@/domain/calculations";
 import { evaluateTargets } from "@/domain/constraints";
-import type { CalibrationPreset, IngredientCategory, RecipeFamily } from "@/types";
+import type {
+  CalibrationPreset,
+  IngredientCategory,
+  RecipeFamily,
+  RecipeMetrics,
+  TargetEvaluation,
+} from "@/types";
 import { INGREDIENT_CATEGORY_LABELS, RECIPE_FAMILY_LABELS } from "@/types";
 import { csvField, isExportFormat, safeFilename } from "./format";
 
-/**
- * Esporta una ricetta in JSON o CSV.
- * GET /api/recipes/:id/export?format=json (default) | csv&locale=it|en
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-  const format = request.nextUrl.searchParams.get("format") ?? "json";
-  const locale = request.nextUrl.searchParams.get("locale") ?? "en";
-
-  if (!isExportFormat(format)) {
-    return NextResponse.json(
-      { error: "Formato non supportato: usa json o csv" },
-      { status: 400 },
-    );
-  }
-
-  const recipe = await prisma.recipe.findUnique({
+function loadRecipe(id: string) {
+  return prisma.recipe.findUnique({
     where: { id },
     include: {
       ingredients: { include: { ingredient: true } },
       activePreset: true,
     },
   });
-  if (!recipe) {
-    return NextResponse.json({ error: "Ricetta non trovata" }, { status: 404 });
-  }
+}
 
-  const domainRecipe = toDomainRecipe(recipe);
-  const ingredients = toDomainIngredients(recipe.ingredients.map((ri) => ri.ingredient));
-  const metrics = calculateRecipe(domainRecipe, ingredients);
+type ExportRecipe = NonNullable<Awaited<ReturnType<typeof loadRecipe>>>;
+type NumberFormatter = (value: number, decimals?: number) => string;
+type CsvRow = Array<string | number>;
+
+/** Formattatore numerico dipendente dal locale richiesto. */
+function numberFormatter(locale: string): NumberFormatter {
+  const decimalComma = locale === "it";
+  return (value, decimals = 2) => {
+    const s = value.toFixed(decimals);
+    return decimalComma ? s.replace(".", ",") : s;
+  };
+}
+
+function csvIngredientRows(
+  recipe: ExportRecipe,
+  metrics: RecipeMetrics,
+  fmtNum: NumberFormatter,
+): CsvRow[] {
+  return recipe.ingredients.map((ri) => {
+    const ing = ri.ingredient;
+    const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
+    return [
+      ing.name,
+      INGREDIENT_CATEGORY_LABELS[ing.category as IngredientCategory] ?? ing.category,
+      fmtNum(ri.quantityGrams, 1),
+      fmtNum(metrics.ingredientPercents[ri.id] ?? 0, 1),
+      fmtNum(contr?.water ?? 0, 0),
+      fmtNum(contr?.totalSolids ?? 0, 0),
+      fmtNum(contr?.sugars ?? 0, 0),
+      fmtNum(contr?.fat ?? 0, 0),
+      fmtNum(contr?.protein ?? 0, 0),
+      fmtNum(contr?.podShare ?? 0, 1),
+      fmtNum(contr?.pacShare ?? 0, 1),
+      fmtNum(contr?.cost ?? 0, 4),
+    ];
+  });
+}
+
+function csvMetricRows(metrics: RecipeMetrics, fmtNum: NumberFormatter): CsvRow[] {
   const total = metrics.totalWeightGrams || 1;
+  const pct = (v: number) => fmtNum((v / total) * 100, 1);
+  return [
+    ["Solidi %", pct(metrics.totalSolids)],
+    ["Zuccheri %", pct(metrics.sugars.total)],
+    ["Grassi %", pct(metrics.fat.total)],
+    ["Proteine %", pct(metrics.protein)],
+    ["MSNF %", pct(metrics.msnf)],
+    ["Fibre %", pct(metrics.fiber)],
+    ["POD", fmtNum(metrics.pod, 1)],
+    ["PAC", fmtNum(metrics.pac, 1)],
+    ["POD/kg", fmtNum(metrics.podPerKg, 1)],
+    ["PAC/kg", fmtNum(metrics.pacPerKg, 1)],
+    ["Indice equilibrio", fmtNum(metrics.equilibriumIndex, 0)],
+    ["Temp. servizio °C", fmtNum(metrics.estimatedServingTemperature, 1)],
+    ["Costo/kg €", fmtNum(metrics.costPerKg, 4)],
+    ["Costo totale €", fmtNum(metrics.cost, 4)],
+    ["kcal/100g", fmtNum(metrics.kcalPer100g, 0)],
+  ];
+}
 
-  const preset = recipe.activePreset
-    ? (recipe.activePreset as unknown as CalibrationPreset | null) : null;
-  const evaluations = preset ? evaluateTargets(metrics, preset) : [];
+function csvTargetRows(evaluations: TargetEvaluation[], fmtNum: NumberFormatter): CsvRow[] {
+  return evaluations.map((e) => [
+    e.label,
+    fmtNum(e.value, 1),
+    fmtNum(e.range.min, 1),
+    e.range.ideal !== undefined ? fmtNum(e.range.ideal, 1) : "",
+    fmtNum(e.range.max, 1),
+    fmtNum(e.deltaFromIdeal, 2),
+  ]);
+}
 
-  if (format === "csv") {
-    // CSV con separatore ; e decimale , per locale it
-    const sep = locale === "it" ? ";" : ",";
-    const dec = locale === "it" ? "," : ".";
-    const fmtNum = (v: number, d = 2): string => {
-      const s = v.toFixed(d);
-      return dec === "," ? s.replace(".", ",") : s;
-    };
+/** CSV con separatore `;` e decimale `,` per il locale it. */
+function buildCsv(
+  recipe: ExportRecipe,
+  metrics: RecipeMetrics,
+  evaluations: TargetEvaluation[],
+  locale: string,
+): string {
+  const sep = locale === "it" ? ";" : ",";
+  const fmtNum = numberFormatter(locale);
+  const row = (fields: CsvRow): string => fields.map((f) => csvField(f)).join(sep);
 
-    const row = (fields: Array<string | number>): string =>
-      fields.map((f) => csvField(f)).join(sep);
-
-    const lines: string[] = [];
-
-    // Header ricetta
-    lines.push(row(["# Ricetta", recipe.name]));
+  const lines: string[] = [
+    row(["# Ricetta", recipe.name]),
     // Etichette leggibili, non gli enum grezzi: il CSV lo apre un gelatiere.
-    lines.push(row(["# Famiglia", RECIPE_FAMILY_LABELS[recipe.family as RecipeFamily] ?? recipe.family]));
-    lines.push(row(["# Peso batch (g)", fmtNum(recipe.targetBatchWeight, 0)]));
-    lines.push(row(["# Versione", recipe.version]));
-    lines.push("");
-
-    // Header ingredienti
-    lines.push(row([
+    row(["# Famiglia", RECIPE_FAMILY_LABELS[recipe.family as RecipeFamily] ?? recipe.family]),
+    row(["# Peso batch (g)", fmtNum(recipe.targetBatchWeight, 0)]),
+    row(["# Versione", recipe.version]),
+    "",
+    row([
       "Ingrediente", "Categoria", "Grammi", "%",
       "Acqua", "Solidi", "Zuccheri", "Grassi", "Proteine",
       "POD", "PAC", "Costo",
-    ]));
+    ]),
+    ...csvIngredientRows(recipe, metrics, fmtNum).map(row),
+    "",
+    csvField("# Metriche aggregate"),
+    ...csvMetricRows(metrics, fmtNum).map(row),
+  ];
 
-    for (const ri of recipe.ingredients) {
-      const ing = ri.ingredient;
-      const pct = metrics.ingredientPercents[ri.id] ?? 0;
-      const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
-      lines.push(row([
-        ing.name,
-        INGREDIENT_CATEGORY_LABELS[ing.category as IngredientCategory] ?? ing.category,
-        fmtNum(ri.quantityGrams, 1),
-        fmtNum(pct, 1),
-        contr ? fmtNum(contr.water, 0) : "0",
-        contr ? fmtNum(contr.totalSolids, 0) : "0",
-        contr ? fmtNum(contr.sugars, 0) : "0",
-        contr ? fmtNum(contr.fat, 0) : "0",
-        contr ? fmtNum(contr.protein, 0) : "0",
-        contr ? fmtNum(contr.podShare, 1) : "0",
-        contr ? fmtNum(contr.pacShare, 1) : "0",
-        contr ? fmtNum(contr.cost, 4) : "0",
-      ]));
-    }
-
-    lines.push("");
-    lines.push(csvField("# Metriche aggregate"));
-    lines.push(row(["Solidi %", fmtNum((metrics.totalSolids / total) * 100, 1)]));
-    lines.push(row(["Zuccheri %", fmtNum((metrics.sugars.total / total) * 100, 1)]));
-    lines.push(row(["Grassi %", fmtNum((metrics.fat.total / total) * 100, 1)]));
-    lines.push(row(["Proteine %", fmtNum((metrics.protein / total) * 100, 1)]));
-    lines.push(row(["MSNF %", fmtNum((metrics.msnf / total) * 100, 1)]));
-    lines.push(row(["Fibre %", fmtNum((metrics.fiber / total) * 100, 1)]));
-    lines.push(row(["POD", fmtNum(metrics.pod, 1)]));
-    lines.push(row(["PAC", fmtNum(metrics.pac, 1)]));
-    lines.push(row(["POD/kg", fmtNum(metrics.podPerKg, 1)]));
-    lines.push(row(["PAC/kg", fmtNum(metrics.pacPerKg, 1)]));
-    lines.push(row(["Indice equilibrio", fmtNum(metrics.equilibriumIndex, 0)]));
-    lines.push(row(["Temp. servizio °C", fmtNum(metrics.estimatedServingTemperature, 1)]));
-    lines.push(row(["Costo/kg €", fmtNum(metrics.costPerKg, 4)]));
-    lines.push(row(["Costo totale €", fmtNum(metrics.cost, 4)]));
-    lines.push(row(["kcal/100g", fmtNum(metrics.kcalPer100g, 0)]));
-
-    if (evaluations.length > 0) {
-      lines.push("");
-      lines.push(csvField("# Target preset"));
-      lines.push(row(["Parametro", "Valore", "Min", "Ideale", "Max", "Delta"]));
-      for (const e of evaluations) {
-        lines.push(row([
-          e.label,
-          fmtNum(e.value, 1),
-          fmtNum(e.range.min, 1),
-          e.range.ideal !== undefined ? fmtNum(e.range.ideal, 1) : "",
-          fmtNum(e.range.max, 1),
-          fmtNum(e.deltaFromIdeal, 2),
-        ]));
-      }
-    }
-
-    const csv = lines.join("\n");
-    return new NextResponse(csv, {
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${safeFilename(recipe.slug, "ricetta")}.csv"`,
-      },
-    });
+  if (evaluations.length > 0) {
+    lines.push(
+      "",
+      csvField("# Target preset"),
+      row(["Parametro", "Valore", "Min", "Ideale", "Max", "Delta"]),
+      ...csvTargetRows(evaluations, fmtNum).map(row),
+    );
   }
 
-  // JSON export
-  const exportData = {
+  return lines.join("\n");
+}
+
+function buildJson(
+  recipe: ExportRecipe,
+  metrics: RecipeMetrics,
+  evaluations: TargetEvaluation[],
+) {
+  return {
     recipe: {
       id: recipe.id,
       name: recipe.name,
@@ -153,13 +154,12 @@ export async function GET(
     },
     ingredients: recipe.ingredients.map((ri) => {
       const ing = ri.ingredient;
-      const pct = metrics.ingredientPercents[ri.id] ?? 0;
       const contr = metrics.contributions.find((c) => c.recipeIngredientId === ri.id);
       return {
         name: ing.name,
         category: ing.category,
         grams: ri.quantityGrams,
-        percent: pct,
+        percent: metrics.ingredientPercents[ri.id] ?? 0,
         water: contr?.water ?? 0,
         totalSolids: contr?.totalSolids ?? 0,
         sugars: contr?.sugars ?? 0,
@@ -216,10 +216,54 @@ export async function GET(
     })),
     exportedAt: new Date().toISOString(),
   };
+}
 
-  return NextResponse.json(exportData, {
+/**
+ * Esporta una ricetta in JSON o CSV.
+ * GET /api/recipes/:id/export?format=json (default) | csv&locale=it|en
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: Readonly<{ params: Promise<{ id: string }> }>,
+) {
+  const { id } = await params;
+  const format = request.nextUrl.searchParams.get("format") ?? "json";
+  const locale = request.nextUrl.searchParams.get("locale") ?? "en";
+
+  if (!isExportFormat(format)) {
+    return NextResponse.json(
+      { error: "Formato non supportato: usa json o csv" },
+      { status: 400 },
+    );
+  }
+
+  const recipe = await loadRecipe(id);
+  if (!recipe) {
+    return NextResponse.json({ error: "Ricetta non trovata" }, { status: 404 });
+  }
+
+  const domainRecipe = toDomainRecipe(recipe);
+  const ingredients = toDomainIngredients(recipe.ingredients.map((ri) => ri.ingredient));
+  const metrics = calculateRecipe(domainRecipe, ingredients);
+
+  const preset = recipe.activePreset
+    ? (recipe.activePreset as unknown as CalibrationPreset | null) : null;
+  const evaluations = preset ? evaluateTargets(metrics, preset) : [];
+
+  const filename = safeFilename(recipe.slug, "ricetta");
+
+  if (format === "csv") {
+    return new NextResponse(buildCsv(recipe, metrics, evaluations, locale), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}.csv"`,
+      },
+    });
+  }
+
+  return NextResponse.json(buildJson(recipe, metrics, evaluations), {
     headers: {
-      "Content-Disposition": `attachment; filename="${safeFilename(recipe.slug, "ricetta")}.json"`,
+      "Content-Disposition": `attachment; filename="${filename}.json"`,
     },
   });
 }

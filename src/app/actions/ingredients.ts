@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/infrastructure/database/client";
 import { toDomainIngredient } from "@/infrastructure/repositories/mappers";
 import { resolveSeedCoefficients } from "@/infrastructure/database/seed-ingredients";
-import { slugify, uniqueSlug } from "@/lib/slug";
+import { uniqueSlug } from "@/lib/slug";
 import type { Ingredient, IngredientInput } from "@/types";
 import type { Prisma } from "@prisma/client";
 

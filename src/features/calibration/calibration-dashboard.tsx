@@ -26,12 +26,12 @@ const CHART_COLORS = ["#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#10b981", "#6
 
 export function CalibrationDashboard({
   recipe, ingredients, presets, activePreset,
-}: {
+}: Readonly<{
   recipe: Recipe;
   ingredients: Ingredient[];
   presets: CalibrationPreset[];
   activePreset: CalibrationPreset | null;
-}) {
+}>) {
   const router = useRouter();
   // Il select mostra solo i preset applicabili alla famiglia: il default deve
   // appartenere a quella lista, altrimenti si calibrerebbe con un preset diverso
@@ -110,8 +110,8 @@ export function CalibrationDashboard({
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="min-w-[220px] flex-1">
-            <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Preset</label>
-            <Select value={presetId} onChange={(e) => { setPresetId(e.target.value); setResult(null); setError(null); }}>
+            <label htmlFor="cal-preset" className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Preset</label>
+            <Select id="cal-preset" value={presetId} onChange={(e) => { setPresetId(e.target.value); setResult(null); setError(null); }}>
               {familyPresets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.isSystemPreset ? " (sistema)" : ""}
@@ -177,8 +177,8 @@ export function CalibrationDashboard({
             <p>{result.message}</p>
             {result.conflictingConstraints.length > 0 && (
               <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                {result.conflictingConstraints.map((c, i) => (
-                  <li key={i}><strong>{c.label}:</strong> {c.detail}</li>
+                {result.conflictingConstraints.map((c) => (
+                  <li key={`${c.label}-${c.detail}`}><strong>{c.label}:</strong> {c.detail}</li>
                 ))}
               </ul>
             )}
@@ -186,7 +186,7 @@ export function CalibrationDashboard({
               <div className="rounded-md bg-muted p-2">
                 <div className="mb-1 text-xs font-semibold uppercase">Suggerimenti</div>
                 <ul className="list-disc space-y-0.5 pl-5">
-                  {result.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                  {result.suggestions.map((suggestion) => <li key={suggestion}>{suggestion}</li>)}
                 </ul>
               </div>
             )}
@@ -194,7 +194,7 @@ export function CalibrationDashboard({
         </Card>
       )}
 
-      {result && result.feasible && (
+      {result?.feasible && (
         <div>
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-sm font-semibold">Soluzioni proposte ({result.solutions.length})</h2>
@@ -221,14 +221,14 @@ export function CalibrationDashboard({
 
 function SolutionCard({
   solution, originalMetrics, originalRecipe, ingredients, onApply, disabled,
-}: {
+}: Readonly<{
   solution: CalibrationSolution;
   originalMetrics: RecipeMetrics;
   originalRecipe: Recipe;
   ingredients: Ingredient[];
   onApply: () => void;
   disabled: boolean;
-}) {
+}>) {
   const diff = useMemo(
     () => compareRecipes(originalRecipe, solution.recipe, ingredients, ingredients),
     [originalRecipe, solution.recipe, ingredients],
@@ -297,18 +297,21 @@ function SolutionCard({
   );
 }
 
-function Metric({ label, a, b }: { label: string; a: number; b: number }) {
+function Metric({ label, a, b }: Readonly<{ label: string; a: number; b: number }>) {
   // Il delta si calcola sui valori arrotondati come vengono mostrati, altrimenti
   // la riga si contraddice da sola (es. "18,4 → 18,1 (-0,4)").
   const shownA = round(a, 1);
   const shownB = round(b, 1);
   const delta = round(shownB - shownA, 1);
+  let deltaTone = "text-emerald-600";
+  if (delta > 0) deltaTone = "text-amber-600";
+  else if (delta < 0) deltaTone = "text-sky-600";
   return (
     <div className="flex items-baseline justify-between gap-2">
       <span className="shrink-0 text-muted-foreground">{label}</span>
       <span className="tabular-nums">
         {formatFixedIt(shownA, 1)} → {formatFixedIt(shownB, 1)}
-        <span className={delta > 0 ? "text-amber-600" : delta < 0 ? "text-sky-600" : "text-emerald-600"}>
+        <span className={deltaTone}>
           {" "}({delta > 0 ? "+" : ""}{formatFixedIt(delta, 1)})
         </span>
       </span>
@@ -320,7 +323,7 @@ function pct(grams: number, m: RecipeMetrics): number {
   return m.totalWeightGrams > 0 ? (grams / m.totalWeightGrams) * 100 : 0;
 }
 
-function CompositionCharts({ metrics }: { metrics: RecipeMetrics }) {
+function CompositionCharts({ metrics }: Readonly<{ metrics: RecipeMetrics }>) {
   const total = metrics.totalWeightGrams || 1;
   const otherSolids = Math.max(0, metrics.totalSolids - metrics.sugars.total - metrics.fat.total - metrics.protein - metrics.fiber - metrics.minerals);
   const composition = [

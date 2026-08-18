@@ -2,7 +2,7 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@/lib/utils";
 
-function TooltipProvider({ children }: { children: React.ReactNode }) {
+function TooltipProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   return <TooltipPrimitive.Provider>{children}</TooltipPrimitive.Provider>;
 }
 
@@ -10,11 +10,11 @@ function Tooltip({
   children,
   content,
   side = "top",
-}: {
+}: Readonly<{
   children: React.ReactNode;
   content: React.ReactNode;
   side?: "top" | "bottom" | "left" | "right";
-}) {
+}>) {
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger render={children as React.ReactElement} />

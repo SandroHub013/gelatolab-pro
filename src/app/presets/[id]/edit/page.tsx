@@ -5,7 +5,7 @@ import { EditPresetForm } from "./edit-preset-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditPresetPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditPresetPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const row = await prisma.calibrationPreset.findUnique({ where: { id } });
   if (!row) notFound();

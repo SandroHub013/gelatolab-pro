@@ -15,12 +15,12 @@ export function AddIngredientDialog({
   usedIds,
   onAdd,
   onClose,
-}: {
+}: Readonly<{
   allIngredients: Ingredient[];
   usedIds: Set<string>;
   onAdd: (ingredient: Ingredient, grams: number) => void;
   onClose: () => void;
-}) {
+}>) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("");
 
@@ -39,7 +39,10 @@ export function AddIngredientDialog({
   }, [allIngredients, query, category]);
 
   const categories = useMemo(
-    () => Array.from(new Set(allIngredients.map((i) => i.category))).sort(),
+    () =>
+      Array.from(new Set(allIngredients.map((i) => i.category))).sort((a, b) =>
+        a.localeCompare(b, "it"),
+      ),
     [allIngredients],
   );
 

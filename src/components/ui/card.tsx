@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function Card({ className, ...props }: Readonly<React.HTMLAttributes<HTMLDivElement>>) {
   return (
     <div
       data-slot="card"
@@ -16,7 +16,7 @@ function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
 function CardHeader({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>) {
   return (
     <div
       data-slot="card-header"
@@ -28,8 +28,9 @@ function CardHeader({
 
 function CardTitle({
   className,
+  children,
   ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
+}: Readonly<React.HTMLAttributes<HTMLHeadingElement>>) {
   return (
     <h3
       data-slot="card-title"
@@ -38,14 +39,16 @@ function CardTitle({
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </h3>
   );
 }
 
 function CardDescription({
   className,
   ...props
-}: React.HTMLAttributes<HTMLParagraphElement>) {
+}: Readonly<React.HTMLAttributes<HTMLParagraphElement>>) {
   return (
     <p
       data-slot="card-description"
@@ -58,7 +61,7 @@ function CardDescription({
 function CardContent({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>) {
   return (
     <div
       data-slot="card-content"
@@ -71,7 +74,7 @@ function CardContent({
 function CardFooter({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>) {
   return (
     <div
       data-slot="card-footer"

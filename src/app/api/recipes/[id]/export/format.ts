@@ -26,11 +26,16 @@ export function csvField(value: string | number): string {
  * garantiamo un fallback non vuoto.
  */
 export function safeFilename(value: string, fallback: string): string {
-  const cleaned = value
+  // Split invece di replace più trim ancorato: `/-+$/` ha costo super-lineare
+  // per backtracking, e questo valore arriva dall'esterno.
+  let cleaned = value
     .normalize("NFKD")
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .split(/[^\w.-]+/)
+    .filter(Boolean)
+    .join("-")
+    .replace(/^-+/, "")
     .slice(0, 100);
+  while (cleaned.endsWith("-")) cleaned = cleaned.slice(0, -1);
   return cleaned || fallback;
 }
 

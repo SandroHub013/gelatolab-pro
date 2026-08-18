@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import type { TargetEvaluation } from "@/types";
 import { Check, AlertTriangle, X } from "lucide-react";
 
-export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
+export function RangeBar({ evaluation }: Readonly<{ evaluation: TargetEvaluation }>) {
   const { value, range, status, deltaFromIdeal } = evaluation;
   const span = range.max - range.min;
   // Posizione percentuale del valore sul range esteso (con margine).
@@ -23,11 +23,16 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
   const valuePos = clampPos(value);
 
   const statusConfig = {
-    "in-range": { icon: Check, variant: "success" as const, label: "Nel range", color: "text-emerald-600" },
-    "near-limit": { icon: AlertTriangle, variant: "warning" as const, label: "Vicino limite", color: "text-amber-600" },
-    "out-of-range": { icon: X, variant: "destructive" as const, label: "Fuori range", color: "text-destructive" },
+    "in-range": { icon: Check, variant: "success" as const, label: "Nel range", color: "text-emerald-600", dot: "bg-emerald-600" },
+    "near-limit": { icon: AlertTriangle, variant: "warning" as const, label: "Vicino limite", color: "text-amber-600", dot: "bg-amber-500" },
+    "out-of-range": { icon: X, variant: "destructive" as const, label: "Fuori range", color: "text-destructive", dot: "bg-destructive" },
   }[status];
   const Icon = statusConfig.icon;
+  const valueText = `${formatVal(value, evaluation.unit)} — ${statusConfig.label}`;
+
+  let deltaTone = "";
+  if (deltaFromIdeal > 0) deltaTone = "text-amber-600";
+  else if (deltaFromIdeal < 0) deltaTone = "text-sky-600";
 
   return (
     <div className="py-1.5">
@@ -41,15 +46,19 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
           <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
         </div>
       </div>
-      <div
-        className="relative h-5"
-        role="meter"
-        aria-label={`${evaluation.label}: ${formatVal(value, evaluation.unit)} — ${statusConfig.label}`}
-        aria-valuenow={value}
-        aria-valuemin={lo}
-        aria-valuemax={hi}
-        aria-valuetext={`${formatVal(value, evaluation.unit)} — ${statusConfig.label}`}
+      {/* La barra è una composizione di div posizionati e non può essere un
+          <meter>; l'elemento nativo viene reso fuori schermo per gli screen
+          reader e il disegno resta nascosto alla tecnologia assistiva. */}
+      <meter
+        className="sr-only"
+        min={lo}
+        max={hi}
+        value={value}
+        aria-label={`${evaluation.label}: ${valueText}`}
       >
+        {valueText}
+      </meter>
+      <div className="relative h-5" aria-hidden="true">
         {/* Track */}
         <div className="absolute top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full bg-muted" />
         {/* Range valido */}
@@ -67,7 +76,7 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
         <div
           className={cn(
             "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow",
-            status === "in-range" ? "bg-emerald-600" : status === "near-limit" ? "bg-amber-500" : "bg-destructive",
+            statusConfig.dot,
           )}
           style={{ left: `${valuePos}%` }}
         />
@@ -75,7 +84,7 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
       <div className="mt-0.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
         <span title="Minimo del preset">min {formatVal(range.min, evaluation.unit)}</span>
         <span
-          className={cn(deltaFromIdeal > 0 ? "text-amber-600" : deltaFromIdeal < 0 ? "text-sky-600" : "")}
+          className={deltaTone}
           title={`Scostamento dall'ideale (${formatVal(idealValue, evaluation.unit)})`}
         >
           Δ {deltaFromIdeal > 0 ? "+" : ""}{formatVal(deltaFromIdeal, evaluation.unit)}
@@ -87,6 +96,6 @@ export function RangeBar({ evaluation }: { evaluation: TargetEvaluation }) {
 }
 
 function formatVal(v: number, unit: string): string {
-  const decimals = unit === "°C" ? 0 : Math.abs(v) >= 100 ? 0 : 1;
+  const decimals = unit === "°C" || Math.abs(v) >= 100 ? 0 : 1;
   return `${formatFixedIt(v, decimals)}${unit ? " " + unit : ""}`;
 }

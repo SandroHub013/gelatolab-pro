@@ -1,7 +1,15 @@
 "use client";
 import { useState, useTransition } from "react";
-import { RECIPE_FAMILIES, RECIPE_FAMILY_LABELS, TARGET_KEYS, TARGET_LABELS, type RecipeFamily } from "@/types";
-import type { CalibrationPresetInput, TargetKey, TargetRanges } from "@/types";
+import {
+  RECIPE_FAMILIES,
+  RECIPE_FAMILY_LABELS,
+  TARGET_KEYS,
+  TARGET_LABELS,
+  type CalibrationPresetInput,
+  type RecipeFamily,
+  type TargetKey,
+  type TargetRanges,
+} from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
@@ -49,14 +57,14 @@ export function PresetForm({
   initialTargets = DEFAULT_PRESET_TARGETS,
   submitLabel,
   onSubmit,
-}: {
+}: Readonly<{
   initialName?: string;
   initialDescription?: string;
   initialFamilies?: RecipeFamily[];
   initialTargets?: TargetRow[];
   submitLabel: string;
   onSubmit: (values: PresetFormValues) => Promise<void>;
-}) {
+}>) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [families, setFamilies] = useState<RecipeFamily[]>(initialFamilies);

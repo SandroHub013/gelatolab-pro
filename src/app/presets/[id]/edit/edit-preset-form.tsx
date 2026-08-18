@@ -4,7 +4,7 @@ import { updatePreset } from "@/app/actions/presets";
 import type { CalibrationPreset } from "@/types";
 import { PresetForm, targetRowsFrom } from "@/features/presets/preset-form";
 
-export function EditPresetForm({ preset }: { preset: CalibrationPreset }) {
+export function EditPresetForm({ preset }: Readonly<{ preset: CalibrationPreset }>) {
   const router = useRouter();
 
   return (

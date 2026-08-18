@@ -11,7 +11,7 @@ import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function IngredientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IngredientDetailPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params;
   const row = await prisma.ingredient.findUnique({ where: { id } });
   if (!row) notFound();
@@ -154,7 +154,7 @@ export default async function IngredientDetailPage({ params }: { params: Promise
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="rounded-md bg-muted/40 px-3 py-2">
       <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
