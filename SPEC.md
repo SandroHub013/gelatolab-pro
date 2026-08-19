@@ -13,7 +13,10 @@ Applicazione Next.js funzionante e in produzione locale, con:
 - motore di calcolo puro in `src/domain/` — POD, PAC, solidi, zuccheri per tipo, grassi, MSNF, costi;
 - solver lineare HiGHS che propone tre soluzioni deterministiche;
 - 12 preset di calibrazione, 33 ingredienti, versioni immutabili, export JSON e CSV;
+- assistente vocale sull'intera applicazione (§5), con trascrizione Azure Speech e interpretazione Claude su Foundry;
 - CI su quattro controlli, 80 test, repository pubblico con sito.
+
+Sul Jarvis serve una precisazione, perché la differenza conta: il percorso è verificato nelle sue parti — validazione, gestione degli errori, esecuzione dei comandi, separazione della cache — ma **la chiamata reale al modello non è mai stata eseguita**, per mancanza di credenziali. È codice che non ha ancora visto una risposta riuscita. Vedi §12.
 
 **Un utente solo, nessuna autenticazione, database locale.** È il vincolo che decide tutto ciò che segue.
 
@@ -78,12 +81,16 @@ Parser deterministico come percorso normale (§5). È in questa fase perché è 
 - Registro degli accessi ai dati.
 - Backup con procedura di ripristino **provata**, non solo configurata.
 
+*Fatto quando:* un cliente può scaricare tutto ciò che è suo e cancellare l'account da solo, e un ripristino da backup è stato eseguito davvero almeno una volta su dati reali.
+
 ### F5 — Ciò che giustifica il piano superiore
 
 - Più utenti per laboratorio, con ruoli.
 - Storico delle versioni con confronto esteso.
 - Scheda tecnica di produzione stampabile e brandizzata.
 - Costi con storico dei prezzi degli ingredienti.
+
+*Fatto quando:* esiste almeno una ragione, dichiarabile in una riga, per cui un laboratorio passa da Sol a Luna — e quella riga regge davanti a un gelatiere, non solo davanti a noi.
 
 ### Fuori fase, da valutare dopo
 
@@ -181,7 +188,7 @@ usare il prodotto per una stagione a tre di loro gratis, e chiedere alla fine.
 
 ### Il confine che non si sposta
 
-Il prodotto è impegnato a **non usare modelli linguistici nei calcoli** (vincolo 2 in §6; il documento `PRODUCT.md` che lo enuncia per esteso vive oggi solo nel branch del redesign e non è ancora su `main`). Il Jarvis lo rispetta perché la linea passa nel punto giusto: **il modello sceglie quale azione e con quali parametri, e nient'altro.**
+Il prodotto è impegnato a **non usare modelli linguistici nei calcoli** (vincolo 2 in §10; il documento `PRODUCT.md` che lo enuncia per esteso vive oggi solo nel branch del redesign e non è ancora su `main`). Il Jarvis lo rispetta perché la linea passa nel punto giusto: **il modello sceglie quale azione e con quali parametri, e nient'altro.**
 
 "Aggiungi duecentocinquanta grammi di panna" diventa una chiamata alla stessa funzione che invoca il pulsante. Il 250 è un parametro trascritto, non calcolato. POD, PAC e solidi restano di `src/domain/`. Le metriche che il Jarvis può riferire gli arrivano già calcolate e già formattate, apposta perché le legga soltanto.
 
@@ -242,7 +249,70 @@ Le modifiche all'editor si annullano con undo come quelle fatte a mano. Le scrit
 
 Le credenziali non raggiungono mai il browser: la chiave di trascrizione resta sul server, che rilascia token con scadenza breve.
 
-## 6. Vincoli che non cambiano
+## 6. Esercizio
+
+L'applicazione oggi gira su una macchina sola, con PostgreSQL in un container e nessun ambiente separato. Per un uso locale è la scelta giusta. Per un servizio che qualcuno paga, tre cose diventano obbligatorie e nessuna delle tre esiste.
+
+**Ambienti separati.** Sviluppo, staging, produzione. Serve soprattutto lo staging: le migrazioni Prisma su un database con dati di clienti veri non si provano in produzione, e la migrazione multi-tenant di F1 è irreversibile nella pratica — riportare indietro ricette già scritte in un tenant sbagliato non è un `down` di migrazione, è ricostruzione manuale.
+
+**Database gestito, non un container.** Un PostgreSQL in Docker su una macchina è un incidente in attesa: nessuna replica, backup solo se qualcuno li ha configurati, ripristino mai provato. Un servizio gestito con backup a punto nel tempo costa poche decine di euro al mese e toglie di mezzo la classe di guasto peggiore — quella in cui perdi le ricette di un cliente, che per lui è la chiusura dell'attività e per noi la fine del prodotto.
+
+**Ripristino provato.** Un backup mai ripristinato non è un backup, è un file. La verifica va fatta almeno una volta su dati reali e ripetuta a ogni cambio di schema importante, e il risultato va scritto — data, durata, cosa è andato storto.
+
+Dimensionamento: il carico è trascurabile — decine di laboratori, poche richieste al minuto, il solver è la cosa più pesante e gira in millisecondi. Il costo dell'infrastruttura sarà dominato dal database gestito, non dal calcolo. Non serve pensare a scalabilità orizzontale finché non ci sono numeri che la giustifichino.
+
+## 7. Sicurezza operativa
+
+### Gli endpoint vocali oggi non sono protetti
+
+`POST /api/voice/interpret` e `POST /api/voice/speech-token` non hanno **né autenticazione né limite di frequenza**.
+
+Oggi è innocuo: l'applicazione è locale e senza credenziali configurate i due endpoint rispondono 503. Ma il repository è pubblico, quindi la loro forma è nota, e nel momento in cui il servizio viene esposto con le chiavi configurate diventano due problemi diversi e concreti:
+
+- `interpret` chiama un'API a pagamento a ogni richiesta. Senza limite, chiunque conosca l'URL può generare costo per noi finché non ce ne accorgiamo dalla fattura.
+- `speech-token` è peggio, perché **distribuisce token Azure validi a chiunque lo chieda**. Il token è effimero, ma un ciclo che ne chiede uno ogni nove minuti dà accesso illimitato al nostro servizio di trascrizione.
+
+**Questo è un cancello, non un miglioramento.** Nessun deploy raggiungibile da internet prima che entrambi gli endpoint richiedano una sessione autenticata e abbiano un limite per organizzazione. Il limite serve anche a noi, non solo contro l'abuso: è il meccanismo con cui il tetto sul ripiego linguistico di §4 viene applicato davvero invece che sperato.
+
+### Il resto
+
+**Rotazione delle chiavi.** Le credenziali di Azure, Anthropic e Stripe vivono in variabili d'ambiente. Serve una procedura per sostituirle senza fermo servizio, e vanno sostituite dopo ogni sospetto — non "se succede qualcosa", ma alla prima incertezza.
+
+**Secret scanning.** Oggi è disattivato. Su un repository pubblico è gratuito, e intercetta una chiave committata per sbaglio prima che finisca nell'indice di qualcun altro. Da attivare adesso, prima che il codice cominci a maneggiare credenziali Azure e Stripe.
+
+**Segreti mai nel browser.** Vale già per Azure Speech, che passa da un token effimero. La stessa regola va tenuta per tutto ciò che arriverà: la chiave di Stripe pubblica è pubblica per progetto, quella segreta non lascia mai il server.
+
+**Registro degli accessi ai dati.** Chi ha letto o modificato cosa, e quando. Serve per il GDPR, ma soprattutto serve il giorno in cui un cliente chiede se qualcun altro ha visto le sue ricette: senza registro la risposta onesta è "non lo so", che è la risposta che fa perdere il cliente.
+
+## 8. Requisiti non funzionali
+
+Non sono aspirazioni: sono le soglie sotto le quali il prodotto smette di essere usabile nel contesto in cui vive, cioè un laboratorio con le mani occupate e il tempo contato.
+
+| Requisito | Soglia | Perché quella |
+|---|---|---|
+| Ricalcolo delle metriche dopo una modifica | sotto 100 ms | È percepito come istantaneo. Sopra, il gelatiere smette di sperimentare con le quantità, che è l'uso principale |
+| Risposta del solver | sotto 3 s | Oltre, si passa ad altro e si perde il filo del confronto fra le tre soluzioni |
+| Comando vocale, dalla fine della frase all'azione | sotto 2 s | Oltre, conviene il mouse — e un assistente più lento dell'alternativa non viene usato |
+| Disponibilità | 99% mensile | Circa 7 ore di fermo al mese. Onesto per un servizio a questo prezzo; prometterne di più significa doverlo mantenere |
+| Perdita dati massima accettabile | 24 ore | Con backup a punto nel tempo si sta molto sotto, ma è il limite che ci impegniamo a rispettare |
+| Browser | ultime due versioni di Chrome, Edge, Firefox, Safari | La voce con Azure Speech li copre tutti; con Web Speech resterebbe ai primi due |
+| Conservazione dati dopo la disdetta | 90 giorni, poi cancellazione | Il tempo perché un gelatiere ci ripensi a inizio stagione, senza tenere dati per sempre |
+
+L'applicazione è pensata per desktop e tablet in laboratorio. Il telefono deve funzionare per consultare, non necessariamente per formulare.
+
+## 9. Metriche
+
+Poche, e scelte perché possano dire che stiamo sbagliando.
+
+**Il prodotto funziona se:** un laboratorio che ha creato la prima ricetta ne ha almeno cinque dopo un mese, e torna almeno una volta a settimana durante la stagione. Una sola ricetta e nessun ritorno significa che l'hanno provato e non gli è servito.
+
+**Il Jarvis funziona se:** la quota di comandi che finiscono in `clarify` o `unsupported` sta sotto il 15%, e la quota che il parser risolve senza ripiego linguistico sta sopra l'80%. La seconda è anche la metrica economica: se scende, il costo per utente sale nel modo descritto in §4.
+
+**Il prezzo funziona se:** l'abbonamento sopravvive al primo inverno. La disdetta di ottobre è il momento della verità, non l'iscrizione di marzo.
+
+**Segnale che qualcosa è rotto:** un laboratorio che smette di salvare versioni continuando a usare l'editor. Vuol dire che non si fida dello storico, ed è il primo passo verso il ritorno al foglio di calcolo.
+
+## 10. Vincoli che non cambiano
 
 Valgono per ogni fase e per ogni funzione futura.
 
@@ -252,7 +322,7 @@ Valgono per ogni fase e per ogni funzione futura.
 4. **Le versioni salvate sono immutabili.**
 5. **Ogni comportamento nuovo ha un test; ogni bug corretto ha un test che fallisce prima della correzione.**
 
-## 7. Rischi aperti
+## 11. Rischi aperti
 
 | Rischio | Perché conta | Contromisura |
 |---|---|---|
@@ -261,3 +331,21 @@ Valgono per ogni fase e per ogni funzione futura.
 | Costo AI fuori controllo su un utente pesante | Margine negativo su singoli clienti | Parser come percorso normale, uso equo sul ripiego |
 | Mercato non abituato a comprare software | Il prezzo giusto può essere comunque troppo | Validare con dieci laboratori prima del listino |
 | Dipendenza da un solo fornitore di modelli | Prezzi e disponibilità cambiano | Strato di interpretazione indifferente al fornitore, già progettato così |
+| Endpoint vocali senza autenticazione né limite | Chiunque conosca l'URL genera costo per noi, e `speech-token` distribuisce token Azure validi | Cancello prima di qualsiasi deploy esposto: sessione richiesta e limite per organizzazione (§7) |
+| Migrazione multi-tenant irreversibile nella pratica | Ricette finite nel tenant sbagliato non si recuperano con un `down` di migrazione | Staging con dati realistici, e ripristino provato prima della migrazione (§6) |
+| Perdita del database | Per il cliente è la chiusura dell'attività, per noi la fine del prodotto | Database gestito con backup a punto nel tempo, ripristino verificato su dati veri (§6) |
+| Il parser copre meno dell'atteso | Il costo per utente sale come da §4 e il margine si assottiglia in silenzio | Misurare la quota risolta dal parser (§9): è insieme metrica di qualità e allarme economico |
+
+## 12. Cosa serve da te
+
+Domande che non posso risolvere leggendo il codice. Nessuna blocca il lavoro tecnico su F1.
+
+**Nomi e strategia.** *Sol* e *Luna* e l'interprete combinato vengono da un'indicazione abbreviata (nota in cima). Confermali o correggili: sono due sezioni.
+
+**Credenziali per la verifica.** La chiamata reale a Claude su Foundry non è mai stata eseguita — mancavano le credenziali. Servono un `ANTHROPIC_FOUNDRY_RESOURCE` e una chiave su una risorsa di prova per verificare che `strict`, `effort` e il prompt caching, che su Foundry sono in beta e non GA, siano davvero accettati. Finché non succede, il Jarvis è codice verificato nelle sue parti ma mai visto funzionare intero.
+
+**Prezzi.** I numeri in §4 sono ipotesi. Servono dieci conversazioni con gelatieri veri, con la domanda posta come *"quanto paghi oggi per tenere in ordine le ricette"* e non *"quanto pagheresti"* — la seconda produce cortesia, la prima produce numeri.
+
+**Decisioni che aspettano solo un sì.** Il redesign UI su `wip/ui-redesign` passa tutti e quattro i controlli ma non è mergiato, e `PRODUCT.md` vive solo lì. Il secret scanning è disattivato e su repository pubblico è gratuito (§7). I tre branch `fm/*` sul remote sono residui di PR mergiate mesi fa.
+
+**Una cosa che non so.** Se esista già un laboratorio disposto a fare da primo cliente. Cambia l'ordine del lavoro: con un cliente reale F1 e F2 si stringono attorno a lui e si scoprono i problemi veri; senza, si costruisce al buio e si rischia di raffinare le funzioni sbagliate.
