@@ -14,7 +14,7 @@ Applicazione Next.js funzionante e in produzione locale, con:
 - solver lineare HiGHS che propone tre soluzioni deterministiche;
 - 12 preset di calibrazione, 33 ingredienti, versioni immutabili, export JSON e CSV;
 - assistente vocale sull'intera applicazione (§5), con trascrizione Azure Speech e interpretazione Claude su Foundry;
-- CI su quattro controlli, 84 test, repository pubblico con sito.
+- CI su quattro controlli, 86 test, repository pubblico con sito.
 
 Sul Jarvis serve una precisazione, perché la differenza conta: il percorso è verificato nelle sue parti — validazione, gestione degli errori, esecuzione dei comandi, separazione della cache — ma **la chiamata reale al modello non è mai stata eseguita**, per mancanza di credenziali. È codice che non ha ancora visto una risposta riuscita. Vedi §13.
 
@@ -73,8 +73,18 @@ vincolante senza incasso; oppure incasso differito, con l'addebito al lancio del
 servizio. La prima è la più vicina al segnale che si cerca — soldi che si
 muovono — e la meno onerosa da gestire.
 
+**V1-bis — Trenta frasi vere.** Dai venti contatti di V1, farsi dettare a voce
+come chiederebbero le cose: *"aggiungi la panna"*, *"portami il latte a
+cinquecento"*, quello che dicono davvero. Costa zero e produce l'unica cosa che
+rende verificabile l'assunzione da cui dipende tutta §4: la copertura dell'85%
+del parser. Senza un corpus di frasi reali quel numero resta un obiettivo che
+nessuna fase sa misurare — ed è il buco più grande che il piano ancora ha.
+
 **V2 — Quanto è grande il mercato.** Quanti laboratori di gelateria artigianale
-esistono in Italia, dai dati ISTAT e Registro Imprese per codice ATECO. È un
+esistono in Italia, dai dati ISTAT e Registro Imprese. **La scelta del codice
+ATECO è la risposta**, non un dettaglio: la produzione di gelati (10.52) e la
+gelateria al dettaglio (56.10.30) danno numeri che differiscono di un ordine di
+grandezza, e il prodotto serve la prima. È un
 pomeriggio di lavoro e decide se il progetto vale 50 o 500 clienti, cioè la
 domanda che §10 dichiara di non poter chiudere. Che finora fosse elencata come
 lavoro futuro invece che come primo pomeriggio era la scelta più difficile da
@@ -106,10 +116,14 @@ raggiungibile da internet, come già prescrive `SECURITY.md`.
 ### F1 — Fondamenta multi-tenant *(blocca tutto il resto)*
 
 - Entità `Organizzazione` (il laboratorio) e `Utente`, con appartenenza.
-- Chiave di tenant su ricette, ingredienti, preset, versioni e snapshot.
+- Chiave di tenant sulle sei tabelle di dati (elenco sotto).
 - Isolamento **con Row Level Security di Postgres**, non con un filtro scritto a mano in ogni query. Il filtro applicativo dipende dalla disciplina di chi scrive: una query aggiunta fra sei mesi lo dimentica e nessuno se ne accorge. RLS lo impone al database.
 
-  Il costo di RLS con Prisma va messo in conto adesso, perché è la parte difficile: il pool di connessioni è condiviso, quindi l'organizzazione corrente va impostata **dentro la transazione** (`$transaction` con `SET LOCAL app.org_id`), e ogni accesso deve passare da lì. Le query fuori transazione non vedono l'impostazione e falliscono la policy — il che è il comportamento giusto, ma va saputo prima e non scoperto in corsa. Il punto unico da cui passano tutte le query va costruito all'inizio di F1, non aggiunto dopo.
+  Il costo di RLS con Prisma va messo in conto adesso, perché è la parte difficile, e tre dettagli decidono se funziona davvero:
+
+  - il pool di connessioni è condiviso, quindi l'organizzazione va impostata **dentro la transazione** (`$transaction` con `SET LOCAL app.org_id`), e ogni accesso deve passare da un punto unico, costruito all'inizio di F1 e non aggiunto dopo. Le query fuori transazione falliscono la policy, che è il comportamento giusto ma va saputo prima;
+  - serve **`ALTER TABLE ... FORCE ROW LEVEL SECURITY`**: senza, le policy non si applicano al proprietario della tabella, e Prisma migra e spesso si connette proprio come proprietario. È l'errore che fa passare in CI un isolamento che in produzione non esiste;
+  - nelle policy va usato **`current_setting('app.org_id', true)`**: senza il secondo argomento, un'impostazione assente solleva un errore invece di produrre un filtro vuoto.
 - Migrazione dei dati esistenti dentro un'organizzazione predefinita.
 - Autenticazione: email più link magico, oppure OAuth. Niente password da gestire se evitabile.
 
@@ -121,8 +135,12 @@ Utente          id, email, nome, creatoIl
 Appartenenza    utenteId, organizzazioneId, ruolo (titolare | collaboratore)
 ```
 
-Su `Recipe`, `Ingredient`, `CalibrationPreset` e `RecipeSnapshot` si aggiunge
-`organizzazioneId` **non nullo**, con indice.
+Su `Recipe`, `Ingredient`, `CalibrationPreset`, `RecipeSnapshot`,
+`RecipeIngredient` e `SnapshotIngredient` si aggiunge `organizzazioneId` **non
+nullo**, con indice. Sono sei: le ultime due contengono le quantità, cioè la
+formula, e vanno tenantizzate direttamente e non lasciate a una policy che
+risalga al genitore — una join in più su ogni lettura, per la tabella più letta
+del prodotto, non vale la colonna risparmiata.
 
 Il dato di sistema sta in un'**organizzazione di sistema** con id fisso, non in
 un campo nullo, per tre ragioni: una colonna `NOT NULL` con vincolo di chiave
@@ -135,15 +153,20 @@ Non perché una chiave nullable impedisca Row Level Security: una policy
 `OR org_id = '<sistema>'`.
 
 Gli ingredienti e i preset di sistema appartengono quindi a
-un'**organizzazione di sistema** con id fisso e noto, e la loro non
-modificabilità resta espressa dai flag che lo schema ha già: `isSystemPreset`
-(`schema.prisma:249`) e `isCustom` (`schema.prisma:111`). Non se ne introduce un
-terzo.
+un'**organizzazione di sistema** con id fisso — un letterale da scegliere ora,
+perché finisce nella migrazione, nel seed e in ogni policy.
+
+La loro non modificabilità non può però restare affidata ai flag applicativi che
+lo schema ha già (`isSystemPreset` a `schema.prisma:249`, `isCustom` a `:111`):
+sarebbe la stessa disciplina di chi scrive che si è appena rifiutata scegliendo
+RLS. Serve una **policy separata per `UPDATE` e `DELETE`** che escluda
+l'organizzazione di sistema; i flag restano per l'interfaccia, che deve mostrare
+il lucchetto, non per la difesa.
 
 **Le unicità globali vanno rese composite, e senza questo F1 va rifatto.** Oggi
 `Ingredient.name`, `Ingredient.slug` (`schema.prisma:66-67`) e `Recipe.slug`
 (`schema.prisma:129`) sono `@unique` su tutto il database. Al secondo cliente:
-`createIngredient` (`src/app/actions/ingredients.ts:20`) risponde *"Esiste già un
+`createIngredient` (`src/app/actions/ingredients.ts:16`) risponde *"Esiste già un
 ingrediente chiamato Panna 38%"* — che è insieme un blocco funzionale e una fuga
 di informazione su un altro laboratorio attraverso un messaggio d'errore; e
 `uniqueSlug` (`src/lib/slug.ts:34`) fa uno scan globale, così il laboratorio B si
@@ -151,13 +174,9 @@ ritrova `fior-di-latte-2` negli URL perché il laboratorio A ha usato quel nome
 prima. Servono `@@unique([organizzazioneId, name])` e simili, e `uniqueSlug` e
 `createIngredient` devono ricevere l'organizzazione come parametro.
 
-**Le tabelle da tenantizzare sono sei, non quattro.** Lo schema ne ha sette in
-tutto: oltre a `Recipe`, `Ingredient`, `CalibrationPreset` e `RecipeSnapshot`
-restano fuori `RecipeIngredient` (`schema.prisma:159`) e `SnapshotIngredient`
-(`:195`) — la settima, `Collection`, viene eliminata (sotto). Le due dimenticate
-sono le più delicate: **contengono le quantità, cioè la formula**. Se la difesa è
-RLS, una tabella senza policy è leggibile per intero, quindi vanno tenantizzate
-anche loro o coperte da una policy che risalga al genitore.
+Lo schema ha **sette** tabelle di dati in tutto: le sei sopra più `Collection`,
+che viene eliminata (sotto). Nessuna resta senza policy: con RLS una tabella
+scoperta è leggibile per intero.
 
 **Cosa riceve un'organizzazione nuova.** Oggi `prisma/seed.ts` crea globalmente
 33 ingredienti, 12 preset e 15 ricette dimostrative. All'iscrizione un
@@ -189,7 +208,12 @@ l'argomento per cui la scelta va fatta ora:
 ```
 Sessione       id, utenteId, scadenza, creataIl
 TokenAccesso   hash, email, scadenza, usatoIl
+EventoUso      id, organizzazioneId, tipo, comando, esito, durataMs, tokenUsati, creatoIl
 ```
+
+`Appartenenza` vuole `@@unique([utenteId, organizzazioneId])`, e la richiesta di
+link magico vuole un limite di frequenza: è un endpoint che manda email a spese
+nostre, cioè lo stesso problema di abuso descritto in §7.
 
 E una dipendenza che nessuna sezione nominava: **un fornitore di posta
 transazionale**. Se l'email non arriva nessuno entra, quindi è un punto di guasto
@@ -205,7 +229,7 @@ clienti.
 
 - Integrazione Stripe: prodotti, prezzi, portale di gestione, webhook per lo stato dell'abbonamento.
 - Stato del piano come dato dell'organizzazione, non del singolo utente.
-- Periodo di prova senza carta di credito.
+- Periodo di prova di **30 giorni senza carta**, con i tetti ridotti di §4.3.
 - Gestione dei fallimenti di pagamento: sospensione in sola lettura, mai cancellazione dei dati.
 
 **Fattura elettronica: è un cancello, non un adempimento successivo.** Vendere
@@ -276,6 +300,7 @@ ripiego è quello su cui §4 ha fatto i conti, verificato con una chiamata reale
 - Storico delle versioni con confronto esteso.
 - Scheda tecnica di produzione stampabile e brandizzata.
 - Costi con storico dei prezzi degli ingredienti.
+- Pesi di ottimizzazione propri per il solver: §4.4 li vende in Luna e nessuna fase li costruiva.
 
 *Fatto quando:* esiste almeno una ragione, dichiarabile in una riga, per cui un laboratorio passa da Sol a Luna — e quella riga regge davanti a un gelatiere, non solo davanti a noi.
 
@@ -286,8 +311,24 @@ Ricettari condivisi fra laboratori, integrazione con fornitori di materie prime,
 ## 4. Piani di abbonamento
 
 Questa sezione è costruita come una derivazione: le assunzioni stanno in cima, e
-ogni cifra più sotto si ricava da quelle. Se un'assunzione cambia, i numeri
-vanno ricalcolati, non ritoccati.
+ogni cifra più sotto si ricava da quelle. Se un'assunzione cambia, i numeri vanno
+ricalcolati, non ritoccati.
+
+**Come va usata, e come no.** Delle assunzioni di 4.1, le due che portano il peso
+maggiore — i secondi di audio per comando e la copertura dell'85% del parser —
+sono una stima e un obiettivo, non misure, e i profili d'uso sono una
+supposizione. La forma di questa sezione è quindi più precisa del suo contenuto:
+una catena di formule verificabili applicata a numeri indovinati produce cifre al
+centesimo che sembrano derivate.
+
+Due conclusioni **reggono a qualunque revisione plausibile** di quelle
+assunzioni, e sono quelle per cui la sezione esiste: **il parser è
+indispensabile**, e **la voce dominante è la trascrizione, non il modello**.
+
+Le cifre puntuali — 39 €, 450 minuti — **non** vanno pubblicate su una pagina di
+listino prima di aver misurato i secondi di audio (§4.2) e raccolto le frasi
+reali (§3 V1-bis). Fino ad allora sono l'ipotesi di lavoro migliore che abbiamo,
+non un prezzo.
 
 ### 4.1 Assunzioni
 
@@ -303,6 +344,7 @@ vanno ricalcolati, non ritoccati.
 | Azure Speech S0 | 0,0154 € al minuto | listino ~$1 l'ora |
 | Copertura del parser | 85% | **obiettivo, non misura**: il parser non esiste ancora (§3 V3) |
 | Commissione incasso | 1,5% + 0,25 € | Stripe carta europea |
+| Profili d'uso | 20 / 50 / 200 comandi al giorno | **supposizione, non dato**: nessuno ha mai osservato un gelatiere usare il prodotto. È l'assunzione meno fondata e più conseguente del documento |
 
 **Costo unitario per comando**, che discende dalla tabella sopra:
 
@@ -338,11 +380,13 @@ già trascritto. Ogni ragionamento sul margine che guardi solo il modello
 linguistico guarda la voce minore.
 
 **I quattro secondi sono una stima e vanno misurati.** Il riconoscimento chiude
-ora la sessione dopo 8 secondi di silenzio
-(`src/features/voice/use-speech-recognition.ts`), quindi il caso peggiore per
-comando è limitato ma non è 4 s. A 8 s effettivi la trascrizione raddoppia e il
-margine sul profilo pesante scende dal 74% al 62%. La misura va fatta prima di
-pubblicare qualunque listino.
+la sessione dopo 8 secondi di silenzio e comunque entro 60
+(`src/features/voice/use-speech-recognition.ts`): il caso peggiore per sessione
+è quindi limitato, ma è un minuto, non quattro secondi. Se l'audio effettivo
+fosse 8 s per comando la trascrizione raddoppia e il margine sul profilo pesante
+scende dal 74% al **58%**. **La misura va fatta prima di pubblicare qualunque
+listino**, ed è un lavoro senza proprietario: nessuna attività di §3 V la
+contiene, e V1 pubblica un listino.
 
 ### 4.3 I tetti, e come si derivano
 
@@ -356,9 +400,9 @@ dimensiona sul profilo pesante, che deve starci dentro: 6.000 comandi × 4 s =
 **Il tetto sui ripieghi discende da quello**, non da un numero scelto a parte:
 450 minuti sono 6.750 comandi, e il 15% fa **1.000 ripieghi al mese per Sol**.
 
-**Luna prende 2,5 volte Sol** — 1.200 minuti e 2.700 ripieghi — perché costa il
-doppio e deve avere un margine di crescita, non perché abbia più utenti: gli
-utenti sono illimitati in entrambi i piani.
+**Luna prende 2,67 volte Sol** — 1.200 minuti, e quindi 2.700 ripieghi per la
+stessa regola del 15% — perché costa il doppio e deve avere margine di crescita,
+non perché abbia più utenti: gli utenti sono illimitati in entrambi i piani.
 
 Caso peggiore, cioè entrambi i tetti esauriti:
 
@@ -370,15 +414,31 @@ Caso peggiore, cioè entrambi i tetti esauriti:
 | **Totale** | **11,24 €** | **29,29 €** |
 | **Margine** | **71%** | **63%** |
 
-Il margine peggiore possibile del servizio è quindi **63%**, e succede solo se un
-cliente Luna esaurisce entrambe le quote — cioè detta venti ore al mese.
+**63% è il peggio a listino pieno, non il peggio possibile.** Tre casi stanno
+sotto, e vanno guardati perché sono tutti e tre realistici:
+
+- **In pausa invernale** i tetti restano pieni e il ricavo scende a 9 € o 19 €:
+  un cliente che dettasse ai tetti durante la pausa sarebbe **in perdita**. I
+  tetti della pausa vanno ridotti in proporzione al prezzo, altrimenti la SKU più
+  economica è anche quella che può costare di più.
+- **Durante la prova gratuita** il ricavo è zero. §7 chiede un tetto di prova più
+  basso; qui va fissato — **100 minuti e 200 ripieghi** sono sufficienti a
+  valutare il prodotto e non a farne un servizio gratuito.
+- **Il costo per comando non è costante**: i token crescono col catalogo del
+  cliente (§4.1, §5). Il tetto conta chiamate, non token, quindi un laboratorio
+  con trecento ricette costa per ripiego molto più di uno con cinque. Finché il
+  contesto include l'elenco delle ricette, questa tabella vale per un cliente
+  medio e non per il cliente affezionato.
 
 **Come si applicano.** Quote mensili per **organizzazione**, non per utente né
 per indirizzo IP. L'azzeramento segue il rinnovo dell'abbonamento, quindi
 dipende da **F2** e non solo da F1: prima di Stripe si azzerano a data fissa.
-I minuti si contano dove si emettono i token di trascrizione
-(`/api/voice/speech-token`), moltiplicando i token emessi per la durata massima
-di sessione; i ripieghi si contano in `/api/voice/interpret`.
+**Dove si contano.** Non sui token di trascrizione emessi: chi apre e chiude
+subito pagherebbe come chi detta un minuto, e il conto non corrisponderebbe a ciò
+che Azure fattura, che è audio reale. Si contano sulla **durata effettiva della
+sessione**, che il client conosce e riporta in `EventoUso.durataMs` (§9); i
+ripieghi si contano in `/api/voice/interpret`. Il tetto per sessione nel codice —
+60 secondi — limita quanto un singolo evento possa sbagliare.
 
 **Al tetto dell'audio la dettatura si ferma, quindi il contatore va mostrato.**
 La sezione 4.5 sostiene che i contatori visibili scoraggiano l'uso, ed è vero
@@ -405,7 +465,7 @@ piani limita il numero di utenti**.
 | Utenti | illimitati | illimitati |
 | Ruoli e permessi | — | ✓ |
 | Preset di calibrazione personalizzati | — | ✓ |
-| Solver con pesi di ottimizzazione propri | — | ✓ |
+| Solver con pesi di ottimizzazione propri *(da aggiungere a F5)* | — | ✓ |
 | Storico prezzi ingredienti e costi nel tempo | — | ✓ |
 | Scheda di produzione brandizzata | — | ✓ |
 | Supporto | email | prioritario |
@@ -458,8 +518,14 @@ descritto in §5: cambia chi paga, non dove vanno i dati.
 
 La tabella 4.2 usa i costi **a cache fredda**, mentre il contesto vocale è
 progettato per sfruttare la cache (`src/features/voice/context.ts`, con un test
-che protegge la separazione fra blocco stabile e blocco volatile). Non è una
-contraddizione ma una scelta prudenziale: si dimensiona sul caso peggiore.
+che protegge la separazione fra blocco stabile e blocco volatile).
+
+Attenzione a come va letta quella scelta: **"cache fredda" non è il caso
+peggiore**. Il codice imposta `cache_control` a ogni richiesta, quindi una cache
+che scade sempre fa pagare la **scrittura** del prefisso a circa 1,25 volte
+l'input. Il caso davvero peggiore è "scrivo sempre e non leggo mai", che costa
+circa il 20% in più di quanto la tabella modelli. La tabella sta quindi in mezzo
+fra il peggio e il meglio, non sul peggio.
 
 Due cose che spostano il conto e che vanno valutate insieme:
 
@@ -627,7 +693,7 @@ Il limite di frequenza serve anche a noi, non solo contro l'abuso: è il
 meccanismo con cui il tetto sul ripiego linguistico di §4 viene applicato davvero
 invece che sperato.
 
-**Abuso del periodo di prova.** Trenta giorni senza carta (§3) più endpoint che
+**Abuso del periodo di prova.** Il periodo senza carta (§3 F2) più endpoint che
 chiamano API a pagamento significa costo per noi a ogni email nuova. Il tetto per
 organizzazione lo limita solo se anche la **creazione di organizzazioni** è
 limitata: un indirizzo email verificato per organizzazione, e un tetto di prova
@@ -737,7 +803,9 @@ commercialista, contributi e imposta.
 listino annuale la soglia cade fra i 200 e i 250 clienti. Finché si è in
 forfettario l'IVA sugli acquisti **non si detrae**, quindi Azure e Anthropic in
 inversione contabile costano il 22% in più — le commissioni di incasso no, sono
-esenti. Il costo variabile passa da 38 a ~46 € l'anno per cliente: non cambia le
+esenti. Il costo variabile passa da 38 a **~44 €** l'anno per cliente — il 22% si applica
+ad Azure e Anthropic, non alle commissioni — e su incasso annuale la commissione
+scende da 10,08 a 6,10 € perché si paga una volta invece di dodici. Non cambia le
 conclusioni, ma va contato.
 
 **La contraddizione che resta aperta, e che non posso chiudere io.** §6

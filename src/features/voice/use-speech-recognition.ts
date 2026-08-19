@@ -28,12 +28,21 @@ const LOCALE = "it-IT";
  * laboratorio, con le mani occupate, e' lo scenario normale e non l'eccezione —
  * continua a costare finche' qualcuno non se ne accorge.
  *
- * Il limite e' sul **silenzio**, non sulla durata totale: si riarma a ogni
- * risultato parziale. Un limite fisso dall'apertura taglierebbe a meta' chi
- * comincia a parlare tardi, che e' esattamente la persona a cui il margine
- * dovrebbe servire.
+ * Servono **due** limiti, non uno.
+ *
+ * Il primo e' sul silenzio e si riarma a ogni risultato parziale: un limite
+ * fisso dall'apertura taglierebbe a meta' chi comincia a parlare tardi, che e'
+ * esattamente la persona a cui il margine dovrebbe servire.
+ *
+ * Il secondo e' un tetto assoluto sulla sessione, e serve proprio perche' il
+ * primo si riarma: in un laboratorio il rumore di fondo produce risultati
+ * parziali, quindi il solo timer di silenzio si rinnoverebbe all'infinito e non
+ * garantirebbe piu' nulla. Senza il tetto, il soffitto di fatto sarebbe la
+ * scadenza del token di trascrizione — dieci minuti di audio fatturato contro i
+ * quattro secondi di un comando.
  */
 const SILENCE_TIMEOUT_MS = 8_000;
+const MAX_SESSION_MS = 60_000;
 
 export interface SpeechRecognitionState {
   listening: boolean;
@@ -65,6 +74,11 @@ export function useSpeechRecognition(
 
   const recognizerRef = useRef<SpeechRecognizer | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionCapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // `start` fa due await prima di assegnare il recognizer: senza questo, due
+  // click ravvicinati aprono due sessioni e la prima resta viva senza
+  // riferimento, cioe' un microfono aperto che nessuno puo' piu' chiudere.
+  const startingRef = useRef(false);
   // La callback vive in un ref: il riconoscitore si crea una volta per sessione
   // di ascolto, e senza questo continuerebbe a chiamare la versione catturata
   // al momento della creazione.
@@ -73,15 +87,20 @@ export function useSpeechRecognition(
     onFinalRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
 
-  const clearSilenceTimer = useCallback(() => {
+  const clearTimers = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (sessionCapRef.current) {
+      clearTimeout(sessionCapRef.current);
+      sessionCapRef.current = null;
+    }
   }, []);
 
   const dispose = useCallback(() => {
-    clearSilenceTimer();
+    clearTimers();
+    startingRef.current = false;
     const recognizer = recognizerRef.current;
     recognizerRef.current = null;
     if (!recognizer) return;
@@ -89,21 +108,34 @@ export function useSpeechRecognition(
       () => recognizer.close(),
       () => recognizer.close(),
     );
-  }, [clearSilenceTimer]);
+  }, [clearTimers]);
 
   useEffect(() => dispose, [dispose]);
 
-  const armSilenceTimer = useCallback(() => {
-    clearSilenceTimer();
-    timeoutRef.current = setTimeout(() => {
-      setError("Nessun comando riconosciuto: microfono chiuso.");
+  const closeWith = useCallback(
+    (message: string) => {
+      setError(message);
       setListening(false);
       dispose();
-    }, SILENCE_TIMEOUT_MS);
-  }, [clearSilenceTimer, dispose]);
+    },
+    [dispose],
+  );
+
+  const armSilenceTimer = useCallback(() => {
+    // Un evento di coda puo' arrivare dopo `dispose`, mentre la sessione si sta
+    // chiudendo: senza questa guardia armerebbe un timer su una sessione morta,
+    // che poi spegnerebbe l'interfaccia mentre il comando e' gia' in esecuzione.
+    if (!recognizerRef.current) return;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(
+      () => closeWith("Nessun comando riconosciuto: microfono chiuso."),
+      SILENCE_TIMEOUT_MS,
+    );
+  }, [closeWith]);
 
   const start = useCallback(async () => {
-    if (recognizerRef.current) return;
+    if (recognizerRef.current || startingRef.current) return;
+    startingRef.current = true;
     setError(null);
     setInterim("");
 
@@ -117,7 +149,15 @@ export function useSpeechRecognition(
       speechConfig.speechRecognitionLanguage = LOCALE;
       const audioConfig = sdk.AudioConfig.fromDefaultMicrophoneInput();
       const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+      // `stop()` chiamato durante l'attesa qui sopra ha gia' azzerato il flag:
+      // in quel caso l'utente non vuole piu' ascoltare, e aprire il microfono
+      // adesso sarebbe il contrario di quello che ha chiesto.
+      if (!startingRef.current) {
+        recognizer.close();
+        return;
+      }
       recognizerRef.current = recognizer;
+      startingRef.current = false;
 
       recognizer.recognizing = (_sender, event) => {
         setInterim(event.result.text);
@@ -149,6 +189,10 @@ export function useSpeechRecognition(
         () => {
           setListening(true);
           armSilenceTimer();
+          sessionCapRef.current = setTimeout(
+            () => closeWith("Sessione vocale troppo lunga: microfono chiuso."),
+            MAX_SESSION_MS,
+          );
         },
         (reason) => {
           setError(typeof reason === "string" ? reason : "Microfono non disponibile.");
@@ -161,9 +205,10 @@ export function useSpeechRecognition(
       setListening(false);
       dispose();
     }
-  }, [dispose, armSilenceTimer]);
+  }, [dispose, armSilenceTimer, closeWith]);
 
   const stop = useCallback(() => {
+    startingRef.current = false;
     setListening(false);
     setInterim("");
     dispose();
