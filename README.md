@@ -11,7 +11,7 @@
 [![Tailwind 4](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![HiGHS](https://img.shields.io/badge/solver-HiGHS%20WASM-FF6B35)](https://highs.dev)
 [![Node 24](https://img.shields.io/badge/Node-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
-[![Test 57](https://img.shields.io/badge/test-57%20passed-3DDC84)](#test)
+[![Test 80](https://img.shields.io/badge/test-80%20passed-3DDC84)](#test)
 
 ---
 
@@ -176,7 +176,7 @@ src/
 
 ## Test
 
-57 test su 5 file. La densità segue il rischio, non la superficie: i calcoli e il solver ne hanno la quota maggiore, l'escaping CSV ha un test per ogni carattere che in passato ha rotto qualcosa.
+80 test su 7 file. La densità segue il rischio, non la superficie: i calcoli e il solver ne hanno la quota maggiore, l'escaping CSV ha un test per ogni carattere che in passato ha rotto qualcosa.
 
 ```
 src/domain/calculations/     calcoli e solver

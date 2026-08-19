@@ -24,7 +24,7 @@ written now is easy to write wrong. When adding a server action or a Prisma
 call, keep the data access in one place per entity rather than scattering
 `prisma.recipe.findMany` across pages: a filter added later has to be added
 once, not fifteen times. A leak between two customers is the failure mode that
-closes a business, and it is the top risk in SPEC.md §11.
+closes a business, and it is the top risk in SPEC.md §12.
 
 **The language model never computes.** It picks which action and with which
 parameters; POD, PAC, solids and costs come from `src/domain/` and nowhere else.
