@@ -193,7 +193,7 @@ Quattro controlli su ogni push e ogni pull request: lint, typecheck, test con co
 
 | File | Contenuto |
 |---|---|
-| [SPEC.md](./SPEC.md) | Specifica funzionale |
+| [SPEC.md](./SPEC.md) | Stato, roadmap SaaS, piani di abbonamento, Jarvis |
 | [DECISIONS.md](./DECISIONS.md) | Decisioni prese in implementazione, con il perché |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Setup, convenzioni, etichette |
 | [SECURITY.md](./SECURITY.md) | Segnalazione di vulnerabilità |

@@ -10,6 +10,27 @@ The app needs PostgreSQL: `docker compose up -d`, then `npm run db:setup` (migra
 Gates, in the order the pipeline runs them: `npm run typecheck && npm run lint && npm run test && npm run build`.
 `next build` must stay independent of `DATABASE_URL`; every page that queries the DB is server-rendered on demand.
 
+## Direction
+
+The product is heading from a single-user local app to a subscription service.
+[SPEC.md](./SPEC.md) holds the roadmap, the plans and the Jarvis architecture;
+[DECISIONS.md](./DECISIONS.md) holds why each choice was made.
+
+Two consequences that bind work happening **before** that migration lands:
+
+**Every new database query will need a tenant filter.** The schema has no
+organisation yet, so nothing enforces it today — which is exactly why a query
+written now is easy to write wrong. When adding a server action or a Prisma
+call, keep the data access in one place per entity rather than scattering
+`prisma.recipe.findMany` across pages: a filter added later has to be added
+once, not fifteen times. A leak between two customers is the failure mode that
+closes a business, and it is the top risk in SPEC.md §7.
+
+**The language model never computes.** It picks which action and with which
+parameters; POD, PAC, solids and costs come from `src/domain/` and nowhere else.
+Metrics reach the voice layer already calculated and already formatted as
+strings, deliberately, so there is nothing to do with them but read them aloud.
+
 ## Sharp edges
 
 **Base UI primitives are not always `<button>`.** `Checkbox.Root` renders `<span role="checkbox">`, which is
