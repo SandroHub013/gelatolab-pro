@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Snowflake } from "lucide-react";
 import "./globals.css";
 import { MobileNav, SidebarNav } from "@/components/nav-links";
+import { VoiceConsole } from "@/features/voice/voice-console";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -72,6 +73,7 @@ export default function RootLayout({
             </main>
           </div>
         </div>
+        <VoiceConsole />
       </body>
     </html>
   );
