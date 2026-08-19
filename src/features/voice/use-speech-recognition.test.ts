@@ -53,7 +53,9 @@ vi.mock("microsoft-cognitiveservices-speech-sdk", () => ({
   CancellationReason: { Error: 1 },
 }));
 
-const { useSpeechRecognition } = await import("./use-speech-recognition");
+// Import statico: `vi.mock` viene sollevato da vitest sopra gli import, quindi
+// non serve un import dinamico per farlo applicare.
+import { useSpeechRecognition } from "./use-speech-recognition";
 
 beforeEach(() => {
   recognizerInstances.length = 0;
