@@ -39,7 +39,22 @@ Le fasi sono ordinate per dipendenza, non per appetibilità. Ognuna è rilasciab
 - Migrazione dei dati esistenti dentro un'organizzazione predefinita.
 - Autenticazione: email più link magico, oppure OAuth. Niente password da gestire se evitabile.
 
-*Rischio principale:* un filtro dimenticato in una query espone i dati di un cliente a un altro. Serve un test che percorra ogni server action con due organizzazioni e verifichi che nessuna veda l'altra.
+Schema, nella forma minima che regge:
+
+```
+Organizzazione  id, nome, piano, statoAbbonamento, stripeCustomerId, creataIl
+Utente          id, email, nome, creatoIl
+Appartenenza    utenteId, organizzazioneId, ruolo (titolare | collaboratore)
+```
+
+Su `Recipe`, `Ingredient`, `CalibrationPreset` e `RecipeSnapshot` si aggiunge
+`organizzazioneId` non nullo, con indice. Gli ingredienti di sistema e i 12
+preset di sistema restano condivisi: `organizzazioneId` nullo significa
+"di tutti, non modificabile", ed è l'unico caso in cui il campo può mancare.
+
+*Rischio principale:* un filtro dimenticato in una query espone i dati di un cliente a un altro. Il presidio non è la revisione umana ma un test che percorra **ogni** server action con due organizzazioni popolate e verifichi che nessuna veda l'altra — lo stesso trattamento che hanno già gli escaping in `export.test.ts`.
+
+*Fatto quando:* due organizzazioni coesistono nello stesso database, il test di isolamento gira in CI, e i dati preesistenti sono migrati senza perdita.
 
 ### F2 — Fatturazione
 
@@ -48,9 +63,13 @@ Le fasi sono ordinate per dipendenza, non per appetibilità. Ognuna è rilasciab
 - Periodo di prova senza carta di credito.
 - Gestione dei fallimenti di pagamento: sospensione in sola lettura, mai cancellazione dei dati.
 
+*Fatto quando:* un abbonamento si sottoscrive, si aggiorna, si mette in pausa e si disdice senza intervento manuale, e lo stato sopravvive a un webhook perso.
+
 ### F3 — Jarvis gratuito
 
 Parser deterministico come percorso normale (§5). È in questa fase perché è ciò che rende la voce includibile in ogni piano senza costo marginale — vedi i conti in §4.
+
+*Fatto quando:* i comandi dell'elenco in §5 funzionano senza rete e senza chiavi configurate, e il ripiego a modello linguistico si attiva solo se qualcuno lo configura.
 
 ### F4 — Conformità e fiducia
 
@@ -88,11 +107,28 @@ Senza parser deterministico, un singolo cliente entusiasta brucia il margine di 
 
 **Due piani, per laboratorio e non per postazione.** Un laboratorio da tre persone che deve contare le licenze smette di usare il prodotto. Il valore è la ricetta, che è una per laboratorio.
 
-**Sol** — il laboratorio che lavora.
-Ricette e ingredienti illimitati, calcolo completo, calibrazione sui preset di sistema, versioni, export, Jarvis vocale incluso.
+| | **Sol** | **Luna** |
+|---|---|---|
+| | *il laboratorio che lavora* | *il laboratorio che ottimizza* |
+| Ricette e ingredienti | illimitati | illimitati |
+| Calcolo completo (POD, PAC, solidi, costi) | ✓ | ✓ |
+| Calibrazione sui 12 preset di sistema | ✓ | ✓ |
+| Versioni immutabili e confronto | ✓ | ✓ |
+| Export JSON e CSV | ✓ | ✓ |
+| **Jarvis vocale** | ✓ | ✓ |
+| Preset di calibrazione personalizzati | — | ✓ |
+| Solver con pesi di ottimizzazione propri | — | ✓ |
+| Utenti per laboratorio | 1 | fino a 5, con ruoli |
+| Storico prezzi ingredienti e costi nel tempo | — | ✓ |
+| Scheda di produzione brandizzata | — | ✓ |
+| Supporto | email | prioritario |
+| Comandi vocali al ripiego linguistico | 500/mese | 2.000/mese |
 
-**Luna** — il laboratorio che ottimizza.
-Tutto Sol, più: solver con preset personalizzati, più utenti con ruoli, storico prezzi e costi, scheda di produzione brandizzata, supporto prioritario.
+Il tetto sull'ultima riga riguarda **solo** le frasi che il parser non capisce.
+Superato il tetto il Jarvis continua a funzionare col parser: non si spegne, si
+limita alle forme che conosce. A costo Haiku e cache fredda quei tetti valgono
+circa 1,80 € e 7,20 € di costo nostro per utente al mese — il caso peggiore, non
+quello medio.
 
 La differenza fra i piani sta sul **solver e sulle versioni**, cioè su ciò che ha valore professionale — non sulla voce. La voce costa quasi nulla grazie al parser, e metterla nel piano alto significherebbe rinunciare a farla provare proprio a chi deve affezionarsi al prodotto.
 
@@ -113,13 +149,39 @@ Due contromisure, non alternative:
 
 **Chiave propria del cliente solo nel piano alto.** Un gelatiere non sa cosa sia una chiave API, e chiedergliela è attrito letale. Ha senso solo per chi ha vincoli aziendali sui dati.
 
-**I numeri esatti restano da validare.** La struttura dei costi qui sopra è solida; i punti di prezzo vanno verificati parlando con dieci gelatieri prima di stampare un listino.
+### Punti di prezzo: ipotesi da validare
+
+Servono numeri per poter ragionare, ma sono **ipotesi, non decisioni**. La
+struttura dei costi sopra è verificabile; questi no.
+
+| | Mensile | Annuale | Pausa invernale |
+|---|---|---|---|
+| **Sol** | 39 € | 390 € *(dieci mesi su dodici)* | 9 €/mese |
+| **Luna** | 79 € | 790 € | 19 €/mese |
+
+Il ragionamento dietro l'ordine di grandezza: un laboratorio spende in materie
+prime migliaia di euro al mese, e 39 € sono il ricavo di poche vaschette. Sotto
+i 20 € il prodotto segnala di essere un giocattolo a un compratore che di
+mestiere valuta attrezzature; sopra i 100 € entra in una fascia dove pretende un
+venditore, non un sito.
+
+Con questi numeri e i costi di §4, il margine lordo resta sopra il 90% anche
+sull'utente pesante. Il rischio non è il costo: è che il mercato non compri
+software a nessun prezzo.
+
+**Come validare, prima di stampare un listino.** Dieci laboratori, la domanda
+posta come "quanto paghi oggi per tenere in ordine le ricette" invece di "quanto
+pagheresti" — la seconda produce cortesia, la prima produce numeri. Poi far
+usare il prodotto per una stagione a tre di loro gratis, e chiedere alla fine.
+
+**Periodo di prova: 30 giorni senza carta**, che copre l'apertura di stagione ed
+è il momento in cui il gelatiere rifà le ricette.
 
 ## 5. Jarvis
 
 ### Il confine che non si sposta
 
-`PRODUCT.md` impegna il prodotto a **non usare modelli linguistici nei calcoli**. Il Jarvis lo rispetta perché la linea passa nel punto giusto: **il modello sceglie quale azione e con quali parametri, e nient'altro.**
+Il prodotto è impegnato a **non usare modelli linguistici nei calcoli** (vincolo 2 in §6; il documento `PRODUCT.md` che lo enuncia per esteso vive oggi solo nel branch del redesign e non è ancora su `main`). Il Jarvis lo rispetta perché la linea passa nel punto giusto: **il modello sceglie quale azione e con quali parametri, e nient'altro.**
 
 "Aggiungi duecentocinquanta grammi di panna" diventa una chiamata alla stessa funzione che invoca il pulsante. Il 250 è un parametro trascritto, non calcolato. POD, PAC e solidi restano di `src/domain/`. Le metriche che il Jarvis può riferire gli arrivano già calcolate e già formattate, apposta perché le legga soltanto.
 
@@ -130,6 +192,39 @@ Due contromisure, non alternative:
 **Modello linguistico come ripiego opzionale**, per le parafrasi che il parser non copre. Lo strato è indifferente al fornitore: Claude, GPT o un modello locale si sostituiscono cambiando un solo file, perché tutto ciò che sta a valle lavora sul tipo `VoiceCommand` e non sa da dove venga.
 
 Questa indifferenza è deliberata. Il fornitore migliore fra due anni non è quello di oggi, e il costo per token è la voce che si muove di più.
+
+### Vocabolario
+
+Quindici comandi, chiusi. È questa chiusura che rende possibile il parser
+deterministico: non serve capire l'italiano, serve capire quindici forme.
+
+| Comando | Esempio parlato | Reversibile |
+|---|---|---|
+| `answer` | "quanto POD ha" | non modifica |
+| `clarify` | *chiesto dal Jarvis quando il nome è ambiguo* | non modifica |
+| `unsupported` | *fuori vocabolario o dato assente* | non modifica |
+| `navigate` | "vai alla calibrazione" | non modifica |
+| `addIngredient` | "aggiungi duecentocinquanta grammi di panna" | undo |
+| `setQuantity` | "metti il latte a cinquecento" | undo |
+| `removeIngredient` | "togli il destrosio" | undo |
+| `toggleLock` | "blocca la panna" | undo |
+| `setBatchWeight` | "peso batch un chilo" | undo |
+| `setRecipeName` | "chiamala fior di latte più morbida" | undo |
+| `scaleToBatch` | "scala a batch" | undo |
+| `saveSnapshot` | "salva questa versione" | **conferma** |
+| `createRecipe` | "nuova ricetta crema base latte" | **conferma** |
+| `duplicateRecipe` | "duplica questa ricetta" | **conferma** |
+| `runCalibration` | "calibra" | **conferma** |
+| `applySolution` | "applica la soluzione bilanciata" | **conferma** |
+
+La colonna a destra non è descrittiva: è la regola. Ciò che `zundo` annulla parte
+senza attrito; ciò che scrive sul server chiede conferma, perché l'undo non lo
+raggiunge. La distinzione vive in `needsConfirmation`, non nel giudizio di chi
+legge il codice.
+
+Quando il parser non riconosce una forma, l'ordine è: ripiego linguistico se
+configurato e sotto il tetto del piano, altrimenti `clarify`. **Mai un'ipotesi:**
+un `ingredientId` inventato o dei grammi fraintesi costano più di una domanda.
 
 ### Strati
 
