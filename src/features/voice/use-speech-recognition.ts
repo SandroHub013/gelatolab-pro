@@ -22,6 +22,15 @@ import type {
 
 const LOCALE = "it-IT";
 
+/**
+ * Azure fattura l'audio a tempo, e il riconoscimento continuo non si ferma da
+ * solo: senza questo limite un microfono lasciato aperto per distrazione — in un
+ * laboratorio, con le mani occupate, e' lo scenario normale e non l'eccezione —
+ * continua a costare finche' qualcuno non se ne accorge. Un comando parlato sta
+ * sotto i dieci secondi; quindici lasciano margine a chi esita.
+ */
+const MAX_LISTENING_MS = 15_000;
+
 export interface SpeechRecognitionState {
   listening: boolean;
   /** Trascrizione parziale, mostrata mentre si parla. */
@@ -51,6 +60,7 @@ export function useSpeechRecognition(
   const [error, setError] = useState<string | null>(null);
 
   const recognizerRef = useRef<SpeechRecognizer | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // La callback vive in un ref: il riconoscitore si crea una volta per sessione
   // di ascolto, e senza questo continuerebbe a chiamare la versione catturata
   // al momento della creazione.
@@ -60,6 +70,10 @@ export function useSpeechRecognition(
   }, [onFinalTranscript]);
 
   const dispose = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     const recognizer = recognizerRef.current;
     recognizerRef.current = null;
     if (!recognizer) return;
@@ -114,7 +128,14 @@ export function useSpeechRecognition(
       };
 
       recognizer.startContinuousRecognitionAsync(
-        () => setListening(true),
+        () => {
+          setListening(true);
+          timeoutRef.current = setTimeout(() => {
+            setError("Nessun comando riconosciuto: microfono chiuso.");
+            setListening(false);
+            dispose();
+          }, MAX_LISTENING_MS);
+        },
         (reason) => {
           setError(typeof reason === "string" ? reason : "Microfono non disponibile.");
           setListening(false);

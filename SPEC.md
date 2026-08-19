@@ -26,7 +26,11 @@ Vendere abbonamenti non è una funzione da aggiungere: è un cambio di natura de
 
 Lo schema Prisma non ha il concetto di utente né di laboratorio. Le ricette stanno in tabelle piatte e chiunque raggiunga l'applicazione le vede tutte. Oggi è corretto — è un'applicazione locale monoutente. Il giorno che la si espone in rete diventa una violazione di dati.
 
-**Nessuna riga di codice sui piani di abbonamento ha senso prima che esistano autenticazione e isolamento dei dati.** L'ordine delle fasi in §3 non è negoziabile per questo motivo.
+**Nessuna riga di codice sui piani di abbonamento ha senso prima che esistano autenticazione e isolamento dei dati.** L'ordine di F1-F5 in §3 non è negoziabile per questo motivo.
+
+L'unica eccezione è la fase V, che precede tutto e non scrive codice di prodotto:
+valida che esista un compratore. Non viola il vincolo perché non espone nulla —
+se lo facesse, ricadrebbe sotto il cancello di §7 come qualsiasi altro deploy.
 
 Un fatto che è insieme obbligo legale e argomento di vendita: **le ricette sono il segreto industriale del cliente**. Un gelatiere affida al servizio la formula su cui campa la sua attività. Questo impone contratti di trattamento dati con i fornitori cloud, una privacy policy vera e la possibilità di esportare e cancellare tutto. È anche la leva commerciale più forte che il prodotto abbia, se raccontata bene.
 
@@ -34,40 +38,59 @@ Un fatto che è insieme obbligo legale e argomento di vendita: **le ricette sono
 
 Le fasi sono ordinate per dipendenza, non per appetibilità. Ognuna è rilasciabile.
 
-### F0 — Tre laboratori veri, prima di costruire il servizio
+### V — Validazione, prima di costruire il servizio *(due settimane)*
 
-Questa fase esiste perché senza di lei tutto il resto poggia su una premessa che
-nessuno ha verificato.
+*Si chiama V e non F0 per non confonderla col tier gratuito F0 di Azure, citato
+in §4.*
 
 F1, F2 e F4 sono mesi di lavoro il cui unico risultato visibile a un gelatiere è
 una schermata di accesso. Il ragionamento di §2 — nessuna riga sui piani prima
 dell'isolamento — è corretto **se si sta costruendo un servizio**; ma non dimostra
-che si debba costruirlo adesso. La domanda vera non è come rendere l'applicazione
-multi-tenant: è se esista qualcuno disposto a pagarla.
+che si debba costruirlo adesso.
 
-**Cosa fare invece, e prima.** Portare tre laboratori a usare l'applicazione
-**così com'è**, come istanze separate o installazioni locali. Incassare a mano,
-con fattura fatta a mano. Nessuna autenticazione, nessun Stripe, nessun tenant:
-tre database distinti e un po' di lavoro manuale.
+**Il segnale da cercare è uno solo: uno sconosciuto che paga.** Non tre
+conoscenti che accettano un'installazione seguita a mano con supporto diretto
+dell'autore — quelli dimostrano che tre persone accettano un favore, non che
+esiste un mercato. Una versione precedente di questo documento proponeva proprio
+quello, ed era lo stesso errore che denunciava: una premessa validata male, solo
+spostata di un livello.
 
-Cosa si impara, che nessuna intervista dà:
+Tre cose in parallelo, due settimane:
 
-- se il prezzo regge quando qualcuno lo paga davvero, invece di dire che lo
-  pagherebbe;
-- quali funzioni usano e quali ignorano — probabilmente non quelle che
-  immaginiamo;
-- se il Jarvis serve o è una demo che piace e non si usa;
-- se il lavoro manuale di gestirli diventa insostenibile, che è il segnale che
-  dice **quando** cominciare F1, invece di deciderlo a tavolino.
+**V1 — Un pre-ordine da un estraneo.** Una pagina di listino con i prezzi di §4 e
+un pulsante che incassa. Dieci conversazioni con gelatieri, con la domanda posta
+come *"quanto paghi oggi per tenere in ordine le ricette"* e non *"quanto
+pagheresti"*: la seconda produce cortesia, la prima produce numeri. Il criterio è
+**un incasso da qualcuno che non ci conosce**.
 
-*Fatto quando:* tre laboratori hanno pagato almeno un mese e hanno usato il
-prodotto per una stagione, oppure si è stabilito che non ce ne sono — e in quel
-caso F1 non va iniziata affatto.
+**V2 — Quanto è grande il mercato.** Quanti laboratori di gelateria artigianale
+esistono in Italia, dai dati ISTAT e Registro Imprese per codice ATECO. È un
+pomeriggio di lavoro e decide se il progetto vale 50 o 500 clienti, cioè la
+domanda che §10 dichiara di non poter chiudere. Che finora fosse elencata come
+lavoro futuro invece che come primo pomeriggio era la scelta più difficile da
+giustificare in tutto il piano.
 
-**Il rischio di saltare questa fase** non è tecnico ed è il più grave del piano:
-costruire con rigore l'infrastruttura di un servizio che non ha clienti. Le fasi
-successive restano valide e nell'ordine dato; è il momento di iniziarle che F0
-determina.
+**V3 — Il parser (F3).** Non dipende dal multi-tenant, è l'unica fase che si può
+fare adesso, e senza di essa qualunque prova reale della voce costa la colonna
+sinistra di §4 — 108 € al mese per utente pesante, a carico nostro. Va spostata
+qui dal suo posto dopo F2: non c'era alcuna dipendenza che la tenesse là.
+
+*Fatto quando:* c'è un incasso da uno sconosciuto e il numero di V2; oppure sono
+passate **sei settimane e venti contatti senza un pagamento**, e allora F1 non va
+iniziata.
+
+**Perché non installazioni presso tre laboratori.** Era la proposta precedente e
+va scartata per tre motivi che il resto del documento rende evidenti: violerebbe
+il cancello di §7, perché un'installazione raggiungibile senza autenticazione è
+esattamente ciò che quel cancello vieta; richiederebbe comunque partita IVA e
+trasmissione allo SdI (§3 F2), perché *"fattura fatta a mano"* verso un'impresa
+italiana non è conforme dal 2019; e trasformerebbe la migrazione di F1 da 1-a-N
+in 3-a-N, con le collisioni di `slug` e `name` che F1 stessa identifica — cioè
+renderebbe più costosa la fase che dovrebbe proteggere.
+
+Se si vuole comunque mettere il prodotto in mano a qualcuno prima di F1, l'unica
+forma difendibile è **installazione locale sulla rete del laboratorio**, non
+raggiungibile da internet, come già prescrive `SECURITY.md`.
 
 ### F1 — Fondamenta multi-tenant *(blocca tutto il resto)*
 
@@ -88,17 +111,21 @@ Appartenenza    utenteId, organizzazioneId, ruolo (titolare | collaboratore)
 Su `Recipe`, `Ingredient`, `CalibrationPreset` e `RecipeSnapshot` si aggiunge
 `organizzazioneId` **non nullo**, con indice.
 
-Il dato di sistema non usa un campo nullo. Una chiave di tenant nullable
-costringerebbe ogni query alla forma `WHERE orgId = $1 OR orgId IS NULL`, che è
-esattamente la forma che rende impraticabile l'unica difesa strutturale
-disponibile — Row Level Security di Postgres, o una estensione del client Prisma
-che inietta il filtro. Dichiarare "isolamento a livello di query" e poi scegliere
-lo schema che lo rende difficile sarebbe incoerente.
+Il dato di sistema sta in un'**organizzazione di sistema** con id fisso, non in
+un campo nullo. La ragione non è, come diceva una versione precedente di questo
+documento, che una chiave nullable impedisca Row Level Security: una policy
+`org_id = current_setting(...) OR org_id IS NULL` funziona esattamente come
+funziona `OR org_id = '<sistema>'`. Quell'argomento era falso e va scartato.
+
+Le ragioni vere sono tre, più modeste: una colonna `NOT NULL` con vincolo di
+chiave esterna è verificabile dal database invece che per convenzione; l'indice
+non deve gestire i NULL; e un `INSERT` che dimentica l'organizzazione fallisce
+subito invece di creare in silenzio una riga visibile a tutti.
 
 Gli ingredienti e i preset di sistema appartengono quindi a
 un'**organizzazione di sistema** con id fisso e noto, e la loro non
 modificabilità resta espressa dai flag che lo schema ha già: `isSystemPreset`
-(`schema.prisma:250`) e `isCustom` (`schema.prisma:110`). Non se ne introduce un
+(`schema.prisma:249`) e `isCustom` (`schema.prisma:111`). Non se ne introduce un
 terzo.
 
 **Le unicità globali vanno rese composite, e senza questo F1 va rifatto.** Oggi
@@ -112,16 +139,50 @@ ritrova `fior-di-latte-2` negli URL perché il laboratorio A ha usato quel nome
 prima. Servono `@@unique([organizzazioneId, name])` e simili, e `uniqueSlug` e
 `createIngredient` devono ricevere l'organizzazione come parametro.
 
+**Le tabelle da tenantizzare sono otto, non quattro.** Oltre a `Recipe`,
+`Ingredient`, `CalibrationPreset` e `RecipeSnapshot`, restano fuori
+`RecipeIngredient` (`schema.prisma:159`), `SnapshotIngredient` (`:195`) e
+`Collection` (`:258`). Se la difesa è RLS, una tabella senza policy è leggibile
+per intero: le righe di ricetta contengono le quantità, cioè la formula. Vanno
+tenantizzate anche loro, o coperte da una policy che risalga al genitore.
+
+**Cosa riceve un'organizzazione nuova.** Oggi `prisma/seed.ts` crea globalmente
+33 ingredienti, 12 preset e 15 ricette dimostrative. All'iscrizione un
+laboratorio deve vedere ingredienti e preset di sistema — condivisi, non copiati
+— e **nessuna ricetta dimostrativa**: le ricette demo sono utili in sviluppo e
+confondenti in un ricettario vero.
+
+**I nomi possono collidere col sistema.** `@@unique([organizzazioneId, name])`
+lascia creare un ingrediente "Panna 38%" identico a quello di sistema: due voci
+uguali nella stessa lista, nessun errore. Va deciso se vietarlo o se la voce
+propria prevale su quella di sistema. Stesso problema per i preset, che oggi non
+hanno alcun vincolo di unicità sul nome.
+
 Due campi già presenti vanno decisi, non ignorati: `Recipe.ownerId`
 (`schema.prisma:151`, commentato "predisposizione auth v2") va riusato o rimosso,
-e `Collection` (`schema.prisma:258`) oggi è codice morto — zero riferimenti in
-`src/` — ma la migrazione la incontra comunque, e il suo `recipes String[]` di id
-senza vincolo referenziale non è tenantizzabile per relazione.
+e `Collection` (`schema.prisma:258`) **va eliminata nella migrazione di F1**: è
+codice morto, zero riferimenti in `src/`, e il suo `recipes String[]` di id senza
+vincolo referenziale non è tenantizzabile per relazione. Tenerla significherebbe
+mantenere una tabella senza difese per una funzione che non esiste.
 
 **Autenticazione: link magico via email.** L'alternativa OAuth resta possibile ma
 non è una scelta da rimandare all'implementazione: cambia le tabelle di sessione,
 e F1 è la fase che definisce lo schema. Il link magico evita di gestire password,
 che per un utente solo per laboratorio è il compromesso giusto.
+
+Le tabelle che ne conseguono, e che lo schema qui sopra ometteva pur essendo
+l'argomento per cui la scelta va fatta ora:
+
+```
+Sessione       id, utenteId, scadenza, creataIl
+TokenAccesso   hash, email, scadenza, usatoIl
+```
+
+E una dipendenza che nessuna sezione nominava: **un fornitore di posta
+transazionale**. Se l'email non arriva nessuno entra, quindi è un punto di guasto
+del prodotto, non un dettaglio; è un costo che §4 non conta; ed è un
+sub-responsabile da dichiarare nel DPA di F4, perché tratta gli indirizzi dei
+clienti.
 
 *Rischio principale:* un filtro dimenticato in una query espone i dati di un cliente a un altro. Il presidio non è la revisione umana ma un test che percorra **ogni** server action con due organizzazioni popolate e verifichi che nessuna veda l'altra — lo stesso trattamento che hanno già gli escaping in `export.test.ts`.
 
@@ -161,7 +222,11 @@ partono i 90 giorni di conservazione di §8. Una richiesta esplicita di
 cancellazione vince sempre sulla conservazione, anche durante una sospensione.
 Senza queste tre righe, chi implementa F2 le inventa.
 
-### F3 — Jarvis gratuito
+### F3 — Jarvis gratuito *(anticipata in V, vedi sopra)*
+
+Resta numerata qui per continuità, ma **si esegue durante V**: non dipende dal
+multi-tenant, e senza di essa qualunque prova reale della voce costa la colonna
+sinistra di §4.
 
 Parser deterministico come percorso normale (§5). È in questa fase perché è ciò che rende la voce includibile in ogni piano senza costo marginale — vedi i conti in §4.
 
@@ -194,7 +259,7 @@ ripiego è quello su cui §4 ha fatto i conti, verificato con una chiamata reale
 
 ### F5 — Ciò che giustifica il piano superiore
 
-- Più utenti per laboratorio, con ruoli.
+- Ruoli e permessi per i collaboratori: chi modifica i preset, chi solo consulta. Il numero di utenti non è limitato in nessun piano (§4).
 - Storico delle versioni con confronto esteso.
 - Scheda tecnica di produzione stampabile e brandizzata.
 - Costi con storico dei prezzi degli ingredienti.
@@ -243,10 +308,29 @@ Rifatto il conto con tutto dentro, il margine lordo sull'utente pesante sta
 documento. Resta sano; ma il numero giusto è quello, e la voce dominante non è il
 modello linguistico: è la trascrizione.
 
+**Le assunzioni sotto la tabella, perché sia rifacibile.** ~3.000 token di
+ingresso e ~150 di uscita per comando; quattro secondi di audio per comando;
+cambio 1 € = 1,08 $. Sono i numeri che generano le cifre sopra, e vanno
+ricontrollati quando cambia il prompt: il contesto cresce col catalogo del
+cliente (§5), quindi 3.000 è un valore iniziale, non una costante.
+
+**Quattro secondi è un pavimento, non una misura.** Oggi il riconoscimento apre
+il microfono e lo tiene aperto finché non arriva una frase completa, senza alcun
+timeout (`src/features/voice/use-speech-recognition.ts`): esitazioni, silenzi e
+rumore di laboratorio vengono fatturati. A dieci secondi effettivi per comando il
+margine sull'utente pesante scende dal 74% al 51%. **Va misurato prima di
+pubblicare qualunque margine, e va messo un timeout nel codice** — che è una
+correzione di costo indipendente da questo documento.
+
 **Conseguenza sulla trascrizione.** Se il margine deve salire, la leva non è il
 parser ma passare a Web Speech del browser, che costa zero e scala all'infinito.
-Il prezzo è la copertura: solo Chrome ed Edge, contro i quattro browser promessi
-in §8. È una scelta aperta, non ancora fatta.
+
+Il prezzo però non è solo la copertura — Chrome ed Edge contro i quattro browser
+promessi in §8. **Web Speech manda l'audio ai server di Google**, ed è esattamente
+la fuga che §5 dedica una sezione a denunciare per il modello linguistico: qui
+uscirebbe la voce del gelatiere che detta la sua formula. È anche un dietrofront,
+perché Azure è stato scelto proprio per questo. Resta una scelta aperta, ma il
+suo costo vero è di riservatezza, non di compatibilità.
 
 ### Una nota sulla cache, perché il documento sembrava contraddirsi
 
@@ -268,6 +352,12 @@ prima non faceva:
 
 **Due piani, per laboratorio e non per postazione.** Un laboratorio da tre persone che deve contare le licenze smette di usare il prodotto. Il valore è la ricetta, che è una per laboratorio.
 
+Per questo **nessuno dei due piani limita il numero di utenti**: una versione
+precedente dava un solo utente a Sol, che era esattamente il conteggio di licenze
+dichiarato letale due righe sopra. Luna si distingue per **ruoli e permessi** —
+chi può modificare i preset, chi solo consultare — non per quante persone
+entrano. I tetti veri sono quelli di consumo, e sono per laboratorio.
+
 | | **Sol** | **Luna** |
 |---|---|---|
 | | *il laboratorio che lavora* | *il laboratorio che ottimizza* |
@@ -279,15 +369,22 @@ prima non faceva:
 | **Jarvis vocale** | ✓ | ✓ |
 | Preset di calibrazione personalizzati | — | ✓ |
 | Solver con pesi di ottimizzazione propri | — | ✓ |
-| Utenti per laboratorio | 1 | fino a 5, con ruoli |
+| Utenti per laboratorio | illimitati, senza ruoli | illimitati, con ruoli e permessi |
 | Storico prezzi ingredienti e costi nel tempo | — | ✓ |
 | Scheda di produzione brandizzata | — | ✓ |
 | Supporto | email | prioritario |
-| Comandi vocali al ripiego linguistico | 1.000/mese | 4.000/mese |
+| Comandi vocali al ripiego linguistico | 1.000/mese | 5.000/mese |
+| Minuti di audio dettato | 300/mese | 1.200/mese |
 
 Il tetto sull'ultima riga riguarda **solo** le frasi che il parser non capisce.
 Superato il tetto il Jarvis continua a funzionare col parser: non si spegne, si
 limita alle forme che conosce.
+
+I tetti sono **per laboratorio**, non per persona: i cinque utenti di Luna li
+consumano insieme. Luna ne ha cinque volte gli utenti di Sol e cinque volte i
+ripieghi, così il rapporto per persona non peggiora salendo di piano — con 4.000
+sarebbe stato 800 a testa contro i 1.000 di Sol, cioè si sarebbe pagato il doppio
+per averne meno.
 
 I numeri vengono dalla tabella dei costi, non da un'intuizione. Al tasso di
 ripiego del 15% assunto sopra, 1.000 ripieghi corrispondono a ~6.600 comandi al
@@ -298,11 +395,27 @@ sarebbe potuto esistere. A costo Haiku e cache fredda i due tetti valgono circa
 3,60 € e 14,40 € al mese di costo nostro, nel caso peggiore in cui vengano
 davvero esauriti.
 
-**Come si applica.** Quota mensile per **organizzazione**, non per utente e non
+**Serve un secondo tetto, sui minuti di audio.** Il primo limita il ripiego
+linguistico, che §4 stessa dimostra **non** essere la voce dominante: la
+trascrizione lo è, e il parser non la tocca. Un laboratorio che detta mille
+comandi al giorno tutti capiti dal parser ci costa zero di modello e decine di
+euro di Azure — cioè il meccanismo pensato per proteggere il margine non
+toccherebbe la voce che lo consuma. Quindi: **300 minuti di audio al mese per Sol
+e 1.200 per Luna**, che agli stessi tassi coprono i profili della tabella con
+margine.
+
+**Come si applicano.** Quote mensili per **organizzazione**, non per utente e non
 per indirizzo IP, con azzeramento al rinnovo dell'abbonamento e non a data fissa.
-Sopra il tetto il ripiego smette, il parser continua. È il rate limit di §7 a
-farlo rispettare, quindi il tetto non è implementabile prima di F1 — "per
-organizzazione" richiede che l'organizzazione esista.
+Sopra il tetto dei ripieghi il parser continua da solo; sopra quello dell'audio
+la dettatura si ferma e resta la tastiera. È il rate limit di §7 a farli
+rispettare, quindi non sono implementabili prima di F1 — "per organizzazione"
+richiede che l'organizzazione esista.
+
+**Il caso peggiore, contato per intero.** Luna al tetto di entrambi: 4.000
+ripieghi (14,40 €), 1.200 minuti di audio (~18 €), incasso (1,44 €), totale
+~34 € su 79 €, cioè **margine 57%**. Non "sopra il 70%": quel numero vale al
+profilo medio, non al tetto. Una versione precedente dichiarava 3,60 € e 14,40 €
+come caso peggiore contando la sola interpretazione.
 
 La differenza fra i piani sta sul **solver e sulle versioni**, cioè su ciò che ha valore professionale — non sulla voce. La voce costa quasi nulla grazie al parser, e metterla nel piano alto significherebbe rinunciare a farla provare proprio a chi deve affezionarsi al prodotto.
 
@@ -346,10 +459,7 @@ Il rischio non è il costo: è che il mercato non compri software a nessun prezz
 I prezzi si intendono **IVA esclusa**: il cliente è un soggetto IVA che la
 detrae.
 
-**Come validare, prima di stampare un listino.** Dieci laboratori, la domanda
-posta come "quanto paghi oggi per tenere in ordine le ricette" invece di "quanto
-pagheresti" — la seconda produce cortesia, la prima produce numeri. Poi far
-usare il prodotto per una stagione a tre di loro gratis, e chiedere alla fine.
+**Come validare:** è la fase V di §3, che vale per tutto il documento. Non ci sono programmi di validazione alternativi.
 
 **Periodo di prova: 30 giorni senza carta**, che copre l'apertura di stagione ed
 è il momento in cui il gelatiere rifà le ricette.
@@ -364,7 +474,7 @@ Il prodotto è impegnato a **non usare modelli linguistici nei calcoli** (vincol
 
 ### Interprete combinato
 
-**Parser deterministico come percorso normale.** Il vocabolario è chiuso: quindici comandi, ingredienti da un catalogo noto, numeri in italiano. Non è comprensione del linguaggio aperta, è parsing di un dominio ristretto. Costo zero, nessuna rete, nessuna latenza, e a parità di frase fa sempre la stessa cosa — coerente con un prodotto che dichiara un solver deterministico.
+**Parser deterministico come percorso normale.** Il vocabolario è chiuso: sedici comandi, ingredienti da un catalogo noto, numeri in italiano. Non è comprensione del linguaggio aperta, è parsing di un dominio ristretto. Costo zero, nessuna rete, nessuna latenza, e a parità di frase fa sempre la stessa cosa — coerente con un prodotto che dichiara un solver deterministico.
 
 **Modello linguistico come ripiego opzionale**, per le parafrasi che il parser non copre. Lo strato è indifferente al fornitore: Claude, GPT o un modello locale si sostituiscono cambiando un solo file, perché tutto ciò che sta a valle lavora sul tipo `VoiceCommand` e non sa da dove venga.
 
@@ -434,14 +544,22 @@ aperta riga per riga, ingrediente e grammi, e `renderCatalog`
 loro nomi**.
 
 Portare la chiave del cliente non risolve niente: cambia chi paga, non dove
-vanno i dati. Servono tre cose che oggi non esistono:
+vanno i dati.
+
+**Una sola delle misure qui sotto è un rimedio; le altre due sono costo e
+conformità.** Il segreto industriale è la formula, ed è in `renderState`: quella
+non è rimovibile, è tutto il punto dell'assistente. L'unico controllo reale è
+poter spegnere il ripiego.
 
 - un **interruttore per organizzazione** "non inviare mai le mie ricette a un
   modello esterno", che disattiva il ripiego e lascia il solo parser;
 - il fornitore dichiarato come sub-responsabile nel DPA di F4, e nominato nella
   privacy policy;
-- il catalogo delle ricette **fuori** dal contesto inviato: serve a risolvere i
-  nomi in fase di navigazione, e si può risolvere in locale prima di chiamare.
+- il catalogo delle ricette **fuori** dal contesto inviato — che è una riduzione
+  di esposizione e di costo, non una protezione della formula. Attenzione però:
+  `navigate` e `addIngredient` istruiscono il modello a scegliere fra gli id del
+  contesto e a non inventarli (`src/features/voice/commands.ts`). Togliere il
+  catalogo senza risolvere prima i nomi lato client rompe entrambi.
 
 L'ultima è anche un problema di costo che §4 non modella: `renderCatalog` invia
 tutte le ricette a ogni richiesta, quindi **il costo per comando cresce con la
@@ -523,7 +641,7 @@ Non sono aspirazioni: sono le soglie sotto le quali il prodotto smette di essere
 |---|---|---|
 | Ricalcolo delle metriche dopo una modifica | sotto 100 ms | È percepito come istantaneo. Sopra, il gelatiere smette di sperimentare con le quantità, che è l'uso principale |
 | Risposta del solver | sotto 3 s | Oltre, si passa ad altro e si perde il filo del confronto fra le tre soluzioni |
-| Comando vocale col parser | sotto 2 s | Oltre, conviene il mouse — e un assistente più lento dell'alternativa non viene usato |
+| Comando vocale col parser | **da misurare**, obiettivo 2 s | Oltre, conviene il mouse. Ma il percorso col parser contiene gli stessi token Azure, lo stesso streaming fino a fine frase e l'import dell'SDK del percorso col ripiego: il parser non toglie nessuna delle incognite che rendono non dichiarabile la riga sotto |
 | Comando vocale col ripiego linguistico | **da misurare** | Nessuna misura esiste: la chiamata reale al modello non è mai stata eseguita (§1). Quel budget deve contenere token Azure, streaming fino a fine frase, andata e ritorno al modello, validazione ed esecuzione. Dichiararlo prima di misurarlo sarebbe inventarselo |
 | Disponibilità | 99% mensile | Circa 7 ore di fermo al mese. Onesto per un servizio a questo prezzo; prometterne di più significa doverlo mantenere |
 | Perdita dati massima accettabile | 24 ore | Con backup a punto nel tempo si sta molto sotto, ma è il limite che ci impegniamo a rispettare |
@@ -538,9 +656,18 @@ Poche, e scelte perché possano dire che stiamo sbagliando.
 
 **Il prodotto funziona se:** un laboratorio che ha creato la prima ricetta ne ha almeno cinque dopo un mese, e torna almeno una volta a settimana durante la stagione. Una sola ricetta e nessun ritorno significa che l'hanno provato e non gli è servito.
 
-**Il Jarvis funziona se:** la quota di comandi che finiscono in `clarify` o
-`unsupported` sta sotto il 15%, e la quota che il parser risolve senza ripiego
-linguistico sta **sopra l'85%**.
+**Il Jarvis funziona se**, misurato **per organizzazione** e non in aggregato —
+un laboratorio al 40% di ripiego resta invisibile dentro una media del 10%, e il
+rischio di §12 riguarda il singolo utente pesante:
+
+- la quota di comandi risolti dal parser sta **sopra l'85%** — è la metrica di
+  costo;
+- la quota di **ripieghi** che tornano `unsupported` sta sotto il 15% — è la
+  metrica di qualità.
+
+Le due misurano cose diverse su denominatori diversi. Una versione precedente le
+metteva entrambe sui comandi totali, dove la seconda era un sottoinsieme della
+prima e non poteva scattare da sola.
 
 L'85 non è un numero tondo scelto a caso: è esattamente l'assunzione su cui §4
 costruisce i prezzi, cioè un ripiego al 15%. Una versione precedente di questo
@@ -557,6 +684,14 @@ guasto tecnico come un limite di comprensione.
 
 **Il prezzo funziona se:** l'abbonamento sopravvive al primo inverno. La disdetta di ottobre è il momento della verità, non l'iscrizione di marzo.
 
+**Nulla di tutto questo è misurabile oggi.** Non esiste una riga di telemetria
+nel repository e nessuna fase la introduce: le metriche qui sopra sono, allo
+stato, dichiarazioni di intento. Serve una tabella minima —
+`EventoUso(organizzazioneId, tipo, comando, esito, creatoIl)` — scritta dalle
+stesse azioni che già eseguono i comandi, e va aggiunta a **F1**, perché senza
+`organizzazioneId` non si può segmentare per laboratorio come questa sezione
+richiede.
+
 **Segnale che qualcosa è rotto:** un laboratorio che smette di salvare versioni continuando a usare l'editor. Vuol dire che non si fida dello storico, ed è il primo passo verso il ritorno al foglio di calcolo.
 
 ## 10. Quanti clienti servono
@@ -564,9 +699,9 @@ guasto tecnico come un limite di comprensione.
 Il documento fin qui dice quanto costa servire un cliente. Non diceva quanti ne
 servono, che è la domanda che decide se il progetto ha senso.
 
-Con Sol a 39 € al mese, IVA esclusa, e un costo variabile che nel caso peggiore
-si avvicina a 12 € fra trascrizione, interpretazione e incasso, restano circa
-27 € al mese per cliente. Su questi vanno i costi fissi: database gestito,
+Con Sol a 39 € al mese, IVA esclusa, e il costo variabile di §4 — ~10 € al
+profilo pesante, che arrotondo a 12 € per tenere margine sull'incertezza dei
+secondi di audio — restano circa 27 € al mese per cliente. Su questi vanno i costi fissi: database gestito,
 esercizio, dominio, intermediario per le fatture — realisticamente 100-200 € al
 mese all'inizio.
 
@@ -581,6 +716,17 @@ mese all'inizio.
 tabella qui sopra dicono cose diverse su cosa vogliamo essere**, ed è una
 decisione che non ho gli elementi per prendere: cinquanta clienti e cinquecento
 implicano prodotti, prezzi e architetture differenti.
+
+**Il regime fiscale del venditore cambia due righe della tabella.** Il forfettario
+si ferma a 85.000 € di ricavi: la riga da 200 clienti lo supera, quindi passa a
+regime ordinario con contabilità piena. E finché si è in forfettario **l'IVA sugli
+acquisti non si detrae**: Azure, Anthropic e Stripe in inversione contabile
+portano il costo variabile da ~12 € a ~14,60 €. §4 argomenta l'IVA solo dal lato
+del cliente e mai dal lato di chi vende.
+
+La colonna "cosa significa" parla inoltre di **ricavo lordo**: da lì vanno tolti
+i costi variabili, il commercialista, i contributi e l'imposta. "Una persona a
+tempo pieno" alla riga da 200 è il lordo, non il reddito.
 
 Il numero che manca per chiudere il ragionamento è quanti laboratori di gelateria
 artigianale esistono in Italia e quanti sono raggiungibili. Senza quello, la
@@ -613,10 +759,14 @@ Valgono per ogni fase e per ogni funzione futura.
 | **Costruire un servizio che non ha clienti** | È il rischio più grave del piano: mesi di lavoro su isolamento e fatturazione senza sapere se qualcuno paga | F0 (§3): tre laboratori paganti prima di iniziare F1 |
 | Fatturazione elettronica non conforme | Non è un difetto di prodotto, è un problema fiscale: si incassa in modo irregolare | Cancello dentro F2, intermediario scelto prima del primo webhook |
 | Le ricette escono verso il fornitore del modello | Contraddice la leva commerciale di §2 ed è la prima obiezione che il gelatiere solleverà | Interruttore per organizzazione, sub-responsabile nel DPA, catalogo fuori dal contesto (§5) |
-| Funzionalità in beta su Foundry | `strict`, `effort` e prompt caching non sono GA: tre assunzioni tecniche di §4 poggiano su di esse | Verifica con credenziali reali (§12); il fornitore è sostituibile ma il costo va rifatto |
+| Il modello economico assume Haiku su Foundry, mai verificato | §4 fa i conti su Haiku, ma nessuno ha confermato che sia esposto sulla risorsa Foundry, e `effort` — che il codice passa oggi — quella famiglia non lo accetta | Verificare disponibilità del modello **prima** dei prezzi, non solo `strict` e caching — le credenziali sono richieste in §13 |
+| Rifiuto del fornitore su una frase innocua | Il modello può declinare una richiesta: la route non legge `stop_reason` e lo degrada in "Non ho capito", indistinguibile da un limite di comprensione | Leggere `stop_reason` e distinguere `max_tokens`, `refusal` e assenza di strumento (§9) |
 | Responsabilità di prodotto | L'app tratta allergeni e produce stime euristiche; F5 promette una scheda stampabile e brandizzata. Un allergene mancante su un documento col marchio del laboratorio è un danno reale | Limitazione di responsabilità nelle condizioni d'uso (F4), non solo l'onestà in interfaccia del vincolo 3 |
 | Abuso del periodo di prova | Prova senza carta più endpoint a pagamento significa costo a ogni email nuova | Limite anche sulla creazione di organizzazioni, non solo sull'uso (§7) |
-| Catena di fornitura delle dipendenze | `ci.yml:36` usa `npm install` e `ci.yml:81` fa `npm audit \|\| true`: nulla ferma una dipendenza compromessa | Accettabile per un'app locale, non per un servizio che custodisce segreti di terzi: l'audit deve bloccare prima del primo cliente |
+| Catena di fornitura delle dipendenze | `ci.yml:36` usa `npm install` e `ci.yml:81` fa `npm audit \|\| true`: nulla ferma una dipendenza compromessa | Due parti, perché l'audit copre solo metà: renderlo bloccante, **e** tornare a `npm ci` generando il lockfile su Linux, altrimenti ogni build risolve versioni fresche. La causa del `npm install` è la potatura Windows registrata in `DECISIONS.md` |
+| Nessuna telemetria | Ogni metrica di §9 è inverificabile, e senza numeri non si distingue un prodotto che funziona da uno che nessuno usa | Tabella `EventoUso` dentro F1 (§9) |
+| Fuga dall'export delle ricette | `/api/recipes/[id]/export` restituisce la formula completa senza autenticazione: è la fuga concreta del segreto industriale, non un rischio teorico | Compresa nel cancello di §7, che ora copre tutte le route e le server action |
+| L'email del link magico non arriva | Se la posta transazionale fallisce, nessuno entra: è indisponibilità totale con l'applicazione perfettamente in salute | Fornitore dichiarato in F1, con monitoraggio della consegna |
 | Una persona sola | SLA 99% e perdita massima 24 h (§8) retti da chi non ha sostituti; §6 impegna a un ripristino provato senza dire chi lo esegue di notte | Da affrontare prima di promettere lo SLA, o ridurre la promessa |
 | Cambio euro-dollaro | Prezzi in euro, costi dei modelli in dollari | Margine dimensionato con scorta; rivedere se il cambio si muove oltre il 10% |
 | Il costo cresce col cliente | `renderCatalog` invia tutte le ricette a ogni comando: il cliente affezionato costa più di quello nuovo | Togliere il catalogo dal contesto (§5); è anche la correzione al problema di riservatezza |
@@ -629,7 +779,11 @@ Domande che non posso risolvere leggendo il codice. Nessuna blocca il lavoro tec
 
 **Credenziali per la verifica.** La chiamata reale a Claude su Foundry non è mai stata eseguita — mancavano le credenziali. Servono un `ANTHROPIC_FOUNDRY_RESOURCE` e una chiave su una risorsa di prova per verificare che `strict`, `effort` e il prompt caching, che su Foundry sono in beta e non GA, siano davvero accettati. Finché non succede, il Jarvis è codice verificato nelle sue parti ma mai visto funzionare intero.
 
-**Prezzi.** I numeri in §4 sono ipotesi. Servono dieci conversazioni con gelatieri veri, con la domanda posta come *"quanto paghi oggi per tenere in ordine le ricette"* e non *"quanto pagheresti"* — la seconda produce cortesia, la prima produce numeri.
+**Prezzi.** I numeri in §4 sono ipotesi, e il modo di validarli è la fase V di
+§3 — non un programma separato. Una versione precedente ne conteneva tre diversi
+e incompatibili: dieci interviste qui, tre laboratori gratuiti in §4, tre
+laboratori paganti in §3. Ora è uno solo, con un criterio di arresto: sei
+settimane, venti contatti, un incasso da uno sconosciuto.
 
 **Decisioni che aspettano solo un sì.** Il redesign UI su `wip/ui-redesign` passa tutti e quattro i controlli ma non è mergiato, e `PRODUCT.md` vive solo lì. Il secret scanning è disattivato e su repository pubblico è gratuito (§7). I tre branch `fm/*` sul remote sono residui di PR mergiate mesi fa.
 

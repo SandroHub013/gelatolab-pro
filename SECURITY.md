@@ -17,8 +17,17 @@ GelatoLab Pro computes and stores recipe formulations. The parts that
 handle untrusted input, or turn stored data into something another
 program will interpret, are the ones worth attacking:
 
-- `src/app/api/recipes/[id]/export/` — the only HTTP API route. It reads
-  query parameters and writes both a response header and a CSV file.
+- `src/app/api/recipes/[id]/export/` — reads query parameters and writes
+  both a response header and a CSV file. **It has no authentication**, and
+  it returns a complete recipe — quantities included — for any id. That is
+  the customer's trade secret behind an unguessable-but-not-secret id.
+- `src/app/api/voice/interpret/` and `src/app/api/voice/speech-token/` —
+  also unauthenticated. The first calls a paid API on every request; the
+  second hands out valid Azure tokens to whoever asks. Both are harmless
+  while the app is local and unconfigured, and neither may be exposed to
+  the internet before a session is required. See SPEC.md §7.
+- Server Actions are HTTP endpoints too, and none of them checks a
+  session either. There is no authentication anywhere in `src/` yet.
 - `src/app/api/recipes/[id]/export/format.ts` — CSV escaping and
   filename sanitisation, kept dependency-free so they stay testable.
 - `src/infrastructure/database/` — Prisma access. All queries go through
@@ -53,19 +62,34 @@ putting access control in front of it.
 
 ## Secrets
 
-No credentials are tracked. The only environment variables read anywhere
-in `src/` are `DATABASE_URL` and `NODE_ENV`. `.env` files are ignored by
-git.
+No credentials are tracked; `.env` files are ignored by git. The
+environment variables read in `src/` are `DATABASE_URL`, `NODE_ENV`, and
+— since the voice assistant landed — `ANTHROPIC_FOUNDRY_RESOURCE`,
+`ANTHROPIC_FOUNDRY_API_KEY`, `AZURE_SPEECH_KEY` and
+`AZURE_SPEECH_REGION`. All four are optional: without them the voice
+routes answer 503 and the rest of the app is unaffected.
+
+The Azure Speech key never reaches the browser. `/api/voice/speech-token`
+exchanges it server-side for a token that expires in ten minutes, because
+the Speech SDK runs client-side and `fromSubscription` would put the key
+in the bundle.
 
 ## Automated scanning
 
 CI runs lint, types, tests and a `npm audit` report on every push and
 pull request.
 
-There is no CodeQL workflow here. Code scanning on a private repository
-requires GitHub Advanced Security, which this account does not have, so
-the analysis would run and then fail at upload. Add the workflow back if
-this repository is ever made public, or if GHAS is enabled.
+There is no CodeQL workflow here yet. It was removed while the repository
+was private, because code scanning on a private repository requires GitHub
+Advanced Security and the analysis would run and then fail at upload.
+
+**That condition no longer holds: the repository is public, and code
+scanning is free here.** The workflow should be added back. Secret
+scanning is likewise available and currently disabled.
+
+Note also that `npm audit` in CI runs with `|| true`, so it reports and
+never blocks — acceptable for a local application, not for a service
+holding other people's recipes. SPEC.md §12 tracks both.
 
 ## Supported versions
 
