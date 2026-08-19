@@ -26,10 +26,14 @@ const LOCALE = "it-IT";
  * Azure fattura l'audio a tempo, e il riconoscimento continuo non si ferma da
  * solo: senza questo limite un microfono lasciato aperto per distrazione — in un
  * laboratorio, con le mani occupate, e' lo scenario normale e non l'eccezione —
- * continua a costare finche' qualcuno non se ne accorge. Un comando parlato sta
- * sotto i dieci secondi; quindici lasciano margine a chi esita.
+ * continua a costare finche' qualcuno non se ne accorge.
+ *
+ * Il limite e' sul **silenzio**, non sulla durata totale: si riarma a ogni
+ * risultato parziale. Un limite fisso dall'apertura taglierebbe a meta' chi
+ * comincia a parlare tardi, che e' esattamente la persona a cui il margine
+ * dovrebbe servire.
  */
-const MAX_LISTENING_MS = 15_000;
+const SILENCE_TIMEOUT_MS = 8_000;
 
 export interface SpeechRecognitionState {
   listening: boolean;
@@ -69,11 +73,15 @@ export function useSpeechRecognition(
     onFinalRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
 
-  const dispose = useCallback(() => {
+  const clearSilenceTimer = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+  }, []);
+
+  const dispose = useCallback(() => {
+    clearSilenceTimer();
     const recognizer = recognizerRef.current;
     recognizerRef.current = null;
     if (!recognizer) return;
@@ -81,9 +89,18 @@ export function useSpeechRecognition(
       () => recognizer.close(),
       () => recognizer.close(),
     );
-  }, []);
+  }, [clearSilenceTimer]);
 
   useEffect(() => dispose, [dispose]);
+
+  const armSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+    timeoutRef.current = setTimeout(() => {
+      setError("Nessun comando riconosciuto: microfono chiuso.");
+      setListening(false);
+      dispose();
+    }, SILENCE_TIMEOUT_MS);
+  }, [clearSilenceTimer, dispose]);
 
   const start = useCallback(async () => {
     if (recognizerRef.current) return;
@@ -104,6 +121,7 @@ export function useSpeechRecognition(
 
       recognizer.recognizing = (_sender, event) => {
         setInterim(event.result.text);
+        armSilenceTimer();
       };
 
       recognizer.recognized = (_sender, event) => {
@@ -130,11 +148,7 @@ export function useSpeechRecognition(
       recognizer.startContinuousRecognitionAsync(
         () => {
           setListening(true);
-          timeoutRef.current = setTimeout(() => {
-            setError("Nessun comando riconosciuto: microfono chiuso.");
-            setListening(false);
-            dispose();
-          }, MAX_LISTENING_MS);
+          armSilenceTimer();
         },
         (reason) => {
           setError(typeof reason === "string" ? reason : "Microfono non disponibile.");
@@ -147,7 +161,7 @@ export function useSpeechRecognition(
       setListening(false);
       dispose();
     }
-  }, [dispose]);
+  }, [dispose, armSilenceTimer]);
 
   const stop = useCallback(() => {
     setListening(false);

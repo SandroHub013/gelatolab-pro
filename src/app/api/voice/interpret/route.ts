@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      // `low`: la scelta fra quindici strumenti con il contesto gia' davanti non
+      // `low`: la scelta fra sedici strumenti con il contesto gia' davanti non
       // e' un problema di ragionamento profondo, ed e' un percorso interattivo
       // dove la latenza si sente.
       // Su Foundry `effort`, `strict` e il prompt caching sono in beta, non GA
