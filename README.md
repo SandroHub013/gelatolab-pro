@@ -70,6 +70,36 @@ Nessun LLM nei calcoli. Le euristiche — come la temperatura di servizio stimat
 </table>
 </details>
 
+## Assistente vocale
+
+Un gelatiere in laboratorio ha spesso le mani occupate, fredde o sporche. La
+console vocale — il pulsante col microfono in basso a destra — copre l'intera
+applicazione a voce: navigazione, modifiche alla ricetta, calibrazione,
+salvataggio di versioni.
+
+Il confine che la rende compatibile con la promessa del prodotto: **il modello
+interpreta l'intento, non calcola mai un numero.** "Aggiungi duecentocinquanta
+grammi di panna" diventa una chiamata alla stessa funzione che usa il pulsante,
+e POD, PAC e solidi li ricalcola `src/domain/` come sempre. Le metriche che
+l'assistente puo' riferire gli vengono passate gia' calcolate, apposta perche'
+le legga soltanto.
+
+| Strato | Servizio | File |
+|---|---|---|
+| Trascrizione | Azure Speech (`it-IT`) | `src/features/voice/use-speech-recognition.ts` |
+| Interpretazione | Claude su Microsoft Foundry | `src/app/api/voice/interpret/route.ts` |
+| Esecuzione | store e server action esistenti | `src/features/voice/execute-command.ts` |
+
+Le modifiche all'editor si annullano con undo come quelle fatte a mano. Le
+scritture sul server — salva versione, crea ricetta, applica soluzione del
+solver — chiedono conferma prima di partire, perche' l'undo non le raggiunge.
+
+Senza le variabili d'ambiente di `.env.example` l'applicazione funziona
+identica: la console risponde con un messaggio esplicito invece di rompersi.
+La chiave di Azure Speech non arriva mai al browser — `/api/voice/speech-token`
+rilascia un token che scade dopo dieci minuti. L'SDK vocale, 369 KB, entra con
+un import dinamico e non pesa su chi non apre mai la console.
+
 ## Requisiti
 
 - Node.js 24+

@@ -284,3 +284,18 @@ export async function detectCompositionDrift(recipeId: string): Promise<
 
 
 
+
+/**
+ * Elenco minimo delle ricette: id e nome, per l'assistente vocale.
+ *
+ * Esiste separato dalle query delle pagine perche' quelle caricano ingredienti
+ * e snapshot, e il contesto vocale deve restare piccolo: tutto cio' che entra
+ * nel prompt si paga a ogni comando.
+ */
+export async function listRecipeSummaries(): Promise<Array<{ id: string; name: string }>> {
+  return prisma.recipe.findMany({
+    select: { id: true, name: true },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+  });
+}
