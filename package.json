@@ -21,6 +21,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/foundry-sdk": "^0.4.3",
+    "@anthropic-ai/sdk": "^0.117.1",
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.4.0",
     "@prisma/adapter-pg": "^7.8.0",
@@ -30,6 +32,7 @@
     "clsx": "^2.1.1",
     "highs": "^1.15.1",
     "lucide-react": "^1.25.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.51.0",
     "next": "16.3.1",
     "pg": "^8.22.0",
     "react": "19.2.8",
