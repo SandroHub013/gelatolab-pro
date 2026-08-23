@@ -228,21 +228,16 @@ export function VoiceConsole() {
           variant={speech.listening ? "destructive" : "default"}
           size="sm"
         >
-          {busy ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : speech.listening ? (
-            <MicOff className="size-4" />
-          ) : (
-            <Mic className="size-4" />
-          )}
+          {statusIcon(busy, speech.listening)}
           {speech.listening ? "Ferma" : "Parla"}
         </Button>
         <output className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-          {speech.listening
-            ? speech.interim || "In ascolto…"
-            : busy
-              ? "Interpreto…"
-              : transcript || "Premi Parla e detta un comando."}
+          {statusText({
+            listening: speech.listening,
+            busy,
+            interim: speech.interim,
+            transcript,
+          })}
         </output>
       </div>
 
@@ -291,6 +286,28 @@ export function VoiceConsole() {
       )}
     </section>
   );
+}
+
+/** Icona del bottone. Conta cosa sta accadendo adesso, in quest'ordine. */
+function statusIcon(busy: boolean, listening: boolean) {
+  if (busy) return <Loader2 className="size-4 animate-spin" />;
+  if (listening) return <MicOff className="size-4" />;
+  return <Mic className="size-4" />;
+}
+
+/**
+ * Riga di stato. Stesso ordine di priorita' dell'icona: l'ascolto in corso,
+ * poi l'interpretazione, e solo alla fine l'ultimo comando dettato.
+ */
+function statusText(state: {
+  listening: boolean;
+  busy: boolean;
+  interim: string;
+  transcript: string;
+}): string {
+  if (state.listening) return state.interim || "In ascolto…";
+  if (state.busy) return "Interpreto…";
+  return state.transcript || "Premi Parla e detta un comando.";
 }
 
 /** Frase leggibile per il pannello di conferma. */

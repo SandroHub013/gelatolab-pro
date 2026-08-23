@@ -133,7 +133,7 @@ export function useSpeechRecognition(
     );
   }, [closeWith]);
 
-  const start = useCallback(async () => {
+  const startSession = useCallback(async () => {
     if (recognizerRef.current || startingRef.current) return;
     startingRef.current = true;
     setError(null);
@@ -207,6 +207,14 @@ export function useSpeechRecognition(
     }
   }, [dispose, armSilenceTimer, closeWith]);
 
+  // `startSession` chiude da se' ogni errore dentro il proprio `catch` e non
+  // rigetta mai: qui non resta niente da attendere. Passare per un `useCallback`
+  // invece che per una lambda nel `return` tiene anche `start` stabile fra i
+  // render, cosi' un effetto che ne dipenda non si riesegue a ogni ridisegno.
+  const start = useCallback(() => {
+    startSession();
+  }, [startSession]);
+
   const stop = useCallback(() => {
     startingRef.current = false;
     setListening(false);
@@ -217,13 +225,5 @@ export function useSpeechRecognition(
   // Nessun campo `supported`: a differenza della Web Speech API, Azure non
   // dipende da cosa espone il browser. Un microfono assente o un token negato
   // si manifestano come errore all'avvio, non come assenza di funzionalita'.
-  return {
-    listening,
-    interim,
-    error,
-    start: () => {
-      void start();
-    },
-    stop,
-  };
+  return { listening, interim, error, start, stop };
 }
