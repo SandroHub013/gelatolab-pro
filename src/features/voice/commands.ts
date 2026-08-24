@@ -280,6 +280,124 @@ export const VOICE_TOOLS: VoiceTool[] = [
 const TOOL_NAMES = new Set<string>(VOICE_TOOLS.map((t) => t.name));
 
 /**
+ * Appartenenza a un elenco chiuso che restringe anche il tipo. Sostituisce la
+ * coppia `elenco.includes(x as T)` seguita da `x as T`: la seconda asserzione
+ * non viene verificata da nessuno, e basta sbagliare elenco perche' un valore
+ * fuori dominio entri tipizzato come se fosse dentro.
+ */
+function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
+  return (values as readonly string[]).includes(value);
+}
+
+/**
+ * Il valore passa da una variabile locale perche' il narrowing di `typeof` non
+ * attraversa un accesso indicizzato: su `raw[key]` il compilatore chiederebbe
+ * un'asserzione per ogni lettura.
+ */
+function readString(raw: Record<string, unknown>, key: string): string | undefined {
+  const value = raw[key];
+  // La stringa vuota vale come parametro assente: e' quello che il modello
+  // produce quando non ha capito, e accettarla rinominerebbe una ricetta in "".
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+function readNumber(raw: Record<string, unknown>, key: string): number | undefined {
+  const value = raw[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+interface Params {
+  str: (key: string) => string | undefined;
+  num: (key: string) => number | undefined;
+  /** Il rifiuto tipizzato da restituire quando un parametro non e' utilizzabile. */
+  missing: (field: string) => VoiceCommand;
+}
+
+const params = (raw: Record<string, unknown>, name: string): Params => ({
+  str: (key) => readString(raw, key),
+  num: (key) => readNumber(raw, key),
+  missing: (field) => ({
+    kind: "unsupported",
+    reason: `Parametro mancante o non valido per ${name}: ${field}`,
+  }),
+});
+
+/**
+ * Un parser per strumento.
+ *
+ * La mappa e' indicizzata su `VoiceCommandKind`, quindi uno strumento aggiunto
+ * senza il suo parser non compila: la stessa garanzia dello `switch` esaustivo
+ * che stava qui prima, senza concentrarne i rami in un'unica funzione.
+ */
+const PARSERS: Record<VoiceCommandKind, (p: Params) => VoiceCommand> = {
+  answer: (p) => {
+    const text = p.str("text");
+    return text ? { kind: "answer", text } : p.missing("text");
+  },
+  clarify: (p) => {
+    const question = p.str("question");
+    return question ? { kind: "clarify", question } : p.missing("question");
+  },
+  unsupported: (p) => ({
+    kind: "unsupported",
+    reason: p.str("reason") ?? "Comando non supportato.",
+  }),
+  navigate: (p) => {
+    const target = p.str("target");
+    if (!target || !isOneOf(NAV_TARGETS, target)) return p.missing("target");
+    return { kind: "navigate", target, recipeName: p.str("recipeName") };
+  },
+  addIngredient: (p) => {
+    const ingredientId = p.str("ingredientId");
+    const grams = p.num("grams");
+    if (!ingredientId) return p.missing("ingredientId");
+    if (grams === undefined || grams < 0) return p.missing("grams");
+    return { kind: "addIngredient", ingredientId, grams };
+  },
+  setQuantity: (p) => {
+    const rowId = p.str("rowId");
+    const grams = p.num("grams");
+    if (!rowId) return p.missing("rowId");
+    if (grams === undefined || grams < 0) return p.missing("grams");
+    return { kind: "setQuantity", rowId, grams };
+  },
+  removeIngredient: (p) => {
+    const rowId = p.str("rowId");
+    return rowId ? { kind: "removeIngredient", rowId } : p.missing("rowId");
+  },
+  toggleLock: (p) => {
+    const rowId = p.str("rowId");
+    return rowId ? { kind: "toggleLock", rowId } : p.missing("rowId");
+  },
+  setBatchWeight: (p) => {
+    const grams = p.num("grams");
+    return grams !== undefined && grams > 0
+      ? { kind: "setBatchWeight", grams }
+      : p.missing("grams");
+  },
+  setRecipeName: (p) => {
+    const name = p.str("name");
+    return name ? { kind: "setRecipeName", name } : p.missing("name");
+  },
+  scaleToBatch: () => ({ kind: "scaleToBatch" }),
+  saveSnapshot: (p) => ({ kind: "saveSnapshot", label: p.str("label") }),
+  createRecipe: (p) => {
+    const name = p.str("name");
+    const family = p.str("family");
+    if (!name) return p.missing("name");
+    if (!family || !isOneOf(RECIPE_FAMILIES, family)) return p.missing("family");
+    return { kind: "createRecipe", name, family };
+  },
+  duplicateRecipe: (p) => ({ kind: "duplicateRecipe", newName: p.str("newName") }),
+  runCalibration: (p) => ({ kind: "runCalibration", presetId: p.str("presetId") }),
+  applySolution: (p) => {
+    const variant = p.str("variant");
+    if (!variant || !isOneOf(SOLVER_VARIANTS, variant)) return p.missing("variant");
+    return { kind: "applySolution", variant };
+  },
+};
+
+/**
  * Converte la chiamata di strumento del modello in un comando tipizzato.
  *
  * `strict: true` fa gia' validare lo schema lato API, ma questa funzione e' il
@@ -292,83 +410,7 @@ export function toCommand(name: string, input: unknown): VoiceCommand {
     return { kind: "unsupported", reason: `Comando sconosciuto: ${name}` };
   }
   const raw = (input ?? {}) as Record<string, unknown>;
-  const str = (k: string): string | undefined =>
-    typeof raw[k] === "string" && raw[k] !== "" ? (raw[k] as string) : undefined;
-  const num = (k: string): number | undefined =>
-    typeof raw[k] === "number" && Number.isFinite(raw[k]) ? (raw[k] as number) : undefined;
-
-  const missing = (field: string): VoiceCommand => ({
-    kind: "unsupported",
-    reason: `Parametro mancante o non valido per ${name}: ${field}`,
-  });
-
-  switch (name as VoiceCommandKind) {
-    case "answer": {
-      const text = str("text");
-      return text ? { kind: "answer", text } : missing("text");
-    }
-    case "clarify": {
-      const question = str("question");
-      return question ? { kind: "clarify", question } : missing("question");
-    }
-    case "unsupported":
-      return { kind: "unsupported", reason: str("reason") ?? "Comando non supportato." };
-    case "navigate": {
-      const target = str("target");
-      if (!target || !NAV_TARGETS.includes(target as NavTarget)) return missing("target");
-      return { kind: "navigate", target: target as NavTarget, recipeName: str("recipeName") };
-    }
-    case "addIngredient": {
-      const ingredientId = str("ingredientId");
-      const g = num("grams");
-      if (!ingredientId) return missing("ingredientId");
-      if (g === undefined || g < 0) return missing("grams");
-      return { kind: "addIngredient", ingredientId, grams: g };
-    }
-    case "setQuantity": {
-      const id = str("rowId");
-      const g = num("grams");
-      if (!id) return missing("rowId");
-      if (g === undefined || g < 0) return missing("grams");
-      return { kind: "setQuantity", rowId: id, grams: g };
-    }
-    case "removeIngredient": {
-      const id = str("rowId");
-      return id ? { kind: "removeIngredient", rowId: id } : missing("rowId");
-    }
-    case "toggleLock": {
-      const id = str("rowId");
-      return id ? { kind: "toggleLock", rowId: id } : missing("rowId");
-    }
-    case "setBatchWeight": {
-      const g = num("grams");
-      return g !== undefined && g > 0 ? { kind: "setBatchWeight", grams: g } : missing("grams");
-    }
-    case "setRecipeName": {
-      const n = str("name");
-      return n ? { kind: "setRecipeName", name: n } : missing("name");
-    }
-    case "scaleToBatch":
-      return { kind: "scaleToBatch" };
-    case "saveSnapshot":
-      return { kind: "saveSnapshot", label: str("label") };
-    case "createRecipe": {
-      const n = str("name");
-      const family = str("family");
-      if (!n) return missing("name");
-      if (!family || !RECIPE_FAMILIES.includes(family as RecipeFamily)) return missing("family");
-      return { kind: "createRecipe", name: n, family: family as RecipeFamily };
-    }
-    case "duplicateRecipe":
-      return { kind: "duplicateRecipe", newName: str("newName") };
-    case "runCalibration":
-      return { kind: "runCalibration", presetId: str("presetId") };
-    case "applySolution": {
-      const variant = str("variant");
-      if (!variant || !SOLVER_VARIANTS.includes(variant as SolverVariant)) {
-        return missing("variant");
-      }
-      return { kind: "applySolution", variant: variant as SolverVariant };
-    }
-  }
+  // `TOOL_NAMES` viene da `VOICE_TOOLS`, i cui nomi sono gia' `VoiceCommandKind`:
+  // superata la guardia qui sopra, la chiave esiste di sicuro nella mappa.
+  return PARSERS[name as VoiceCommandKind](params(raw, name));
 }
