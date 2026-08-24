@@ -168,8 +168,8 @@
   .card p { margin: 0; color: var(--muted-fg); font-size: 14px; }
 
   table.stack { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.stack td { padding: 11px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  table.stack td:first-child { color: var(--muted-fg); width: 34%; padding-right: 18px; }
+  table.stack th, table.stack td { padding: 11px 0; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; font-weight: normal; }
+  table.stack th:first-child, table.stack td:first-child { color: var(--muted-fg); width: 34%; padding-right: 18px; }
   .scroll-x { overflow-x: auto; }
 
   pre {
@@ -328,14 +328,14 @@
     </div>
     <div class="scroll-x">
       <table class="stack">
-        <tr><td>Frontend</td><td>Next.js 16 App Router · React 19 · TypeScript strict</td></tr>
-        <tr><td>Stile</td><td>Tailwind CSS 4 · Base UI</td></tr>
-        <tr><td>Stato</td><td>Zustand + zundo (undo/redo)</td></tr>
-        <tr><td>Form</td><td>React Hook Form · Zod, schemi condivisi client e server</td></tr>
-        <tr><td>Tabelle e grafici</td><td>TanStack Table v9 · Recharts</td></tr>
-        <tr><td>Backend</td><td>Server Action · Prisma 7 · PostgreSQL 16</td></tr>
-        <tr><td>Solver</td><td>HiGHS via WebAssembly, programmazione lineare</td></tr>
-        <tr><td>Test</td><td>Vitest · Playwright</td></tr>
+        <tr><th scope="row">Frontend</th><td>Next.js 16 App Router · React 19 · TypeScript strict</td></tr>
+        <tr><th scope="row">Stile</th><td>Tailwind CSS 4 · Base UI</td></tr>
+        <tr><th scope="row">Stato</th><td>Zustand + zundo (undo/redo)</td></tr>
+        <tr><th scope="row">Form</th><td>React Hook Form · Zod, schemi condivisi client e server</td></tr>
+        <tr><th scope="row">Tabelle e grafici</th><td>TanStack Table v9 · Recharts</td></tr>
+        <tr><th scope="row">Backend</th><td>Server Action · Prisma 7 · PostgreSQL 16</td></tr>
+        <tr><th scope="row">Solver</th><td>HiGHS via WebAssembly, programmazione lineare</td></tr>
+        <tr><th scope="row">Test</th><td>Vitest · Playwright</td></tr>
       </table>
     </div>
   </section>
